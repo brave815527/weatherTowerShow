@@ -32,41 +32,41 @@ app.get('/api/weather/latest', (req, res) => {
     }
 });
 
-// 負責向 IBM Weather 爬取資料並存入 DB 的函式
+// 負責向 IBM Weather 爬取資料或是從 Supabase 讀取資料的函式
 async function fetchAndSaveWeatherData() {
     try {
-        console.log(`[${new Date().toLocaleString()}] 正在抓取氣象資料...`);
+        console.log(`[${new Date().toLocaleString()}] 準備獲取氣象資料...`);
 
-        // 1. 抓取遠端資料
-        const response = await fetch(process.env.WEATHER_API_URL);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        const obs = data.observations[0];
-
-        // 2. 更新全域暫存
-        latestWeatherData = data;
-
-        // 3. 準備寫入 Supabase 的資料結構
-        const record = {
-            station_id: obs.stationID,
-            temp: obs.metric.temp,
-            dewpt: obs.metric.dewpt,
-            humidity: obs.humidity,
-            wind_speed: obs.metric.windSpeed,
-            wind_gust: obs.metric.windGust,
-            wind_dir: obs.winddir,
-            pressure: obs.metric.pressure,
-            precip_total: obs.metric.precipTotal,
-            precip_rate: obs.metric.precipRate,
-            raw_data: data
-        };
-
-        // 4. 判斷環境，只有在雲端 (Production) 才寫入資料庫
-        // 本機開發時 (Development) 僅供前端讀取，不將重複資料寫入資料庫
         if (process.env.NODE_ENV === 'production') {
+            // ----------------------------------------------------
+            // 1. 雲端 Production 模式：爬取 IBM API 並寫入 DB
+            // ----------------------------------------------------
+            const response = await fetch(process.env.WEATHER_API_URL);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            const obs = data.observations[0];
+
+            // 更新全域暫存
+            latestWeatherData = data;
+
+            // 準備寫入 Supabase 的資料結構
+            const record = {
+                station_id: obs.stationID,
+                temp: obs.metric.temp,
+                dewpt: obs.metric.dewpt,
+                humidity: obs.humidity,
+                wind_speed: obs.metric.windSpeed,
+                wind_gust: obs.metric.windGust,
+                wind_dir: obs.winddir,
+                pressure: obs.metric.pressure,
+                precip_total: obs.metric.precipTotal,
+                precip_rate: obs.metric.precipRate,
+                raw_data: data
+            };
+
             const { error } = await supabase
                 .from('weather_observations')
                 .insert([record]);
@@ -74,14 +74,35 @@ async function fetchAndSaveWeatherData() {
             if (error) {
                 console.error('寫入 Supabase 時發生錯誤:', error);
             } else {
-                console.log('成功將最新資料寫入 Supabase!');
+                console.log('成功將最新資料從 API 抓取並寫入 Supabase!');
             }
+
         } else {
-            console.log('當前為本機開發模式 (development)，已暫停寫入資料庫，以避免與雲端重複寫入。');
+            // ----------------------------------------------------
+            // 2. 本機 Development 模式：不呼叫 API，直接從 DB 撈最新一筆
+            // ----------------------------------------------------
+            const { data: dbData, error } = await supabase
+                .from('weather_observations')
+                .select('raw_data')
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+            if (error) {
+                console.error('本機模式下從 Supabase 讀取資料失敗:', error);
+                return;
+            }
+
+            if (dbData && dbData.length > 0) {
+                // 將撈出的最新歷史資料送給前端暫存，模擬 API 抓下來的情境
+                latestWeatherData = dbData[0].raw_data;
+                console.log('本機開發模式 (development) - 成功從 Supabase 讀取最新歷史紀錄，不上傳。');
+            } else {
+                console.log('本機開發模式 (development) - 資料庫目前為空。');
+            }
         }
 
     } catch (error) {
-        console.error('抓取氣象資料失敗:', error);
+        console.error('獲取或處理氣象資料時失敗:', error);
     }
 }
 
