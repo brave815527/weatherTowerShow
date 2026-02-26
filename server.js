@@ -32,6 +32,28 @@ app.get('/api/weather/latest', (req, res) => {
     }
 });
 
+// 獲取歷史資料 API Endpoint (預設抓過去 24 小時, 約 1440 筆紀錄)
+app.get('/api/weather/history', async (req, res) => {
+    try {
+        const { data: historyData, error } = await supabase
+            .from('weather_observations')
+            .select('created_at, temp, dewpt, humidity, wind_speed, wind_gust, wind_dir, pressure, precip_total, precip_rate')
+            .order('created_at', { ascending: false })
+            .limit(1440);
+
+        if (error) {
+            console.error('資料庫查詢錯誤:', error);
+            return res.status(500).json({ error: '無法讀取歷史資料' });
+        }
+
+        // 將資料反轉，變成時間由舊到新的正序，方便前端畫圖
+        res.json(historyData.reverse());
+    } catch (error) {
+        console.error('獲取歷史資料失敗:', error);
+        res.status(500).json({ error: '伺服器內部錯誤' });
+    }
+});
+
 // 負責向 IBM Weather 爬取資料或是從 Supabase 讀取資料的函式
 async function fetchAndSaveWeatherData() {
     try {

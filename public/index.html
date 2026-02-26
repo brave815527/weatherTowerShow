@@ -6,6 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Keith's Jian Weather Tower</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- 引入 Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
         :root {
             /* 針對參考圖片高度還原深灰質感 */
@@ -14,6 +17,11 @@
             --text-main: #FFFFFF;
             --text-sub: #A1A1AA;
             --border-color: #3A3A3C;
+            --chart-red: #EF4444;
+            --chart-green: #22C55E;
+            --chart-blue: #3B82F6;
+            --chart-orange: #F97316;
+            --chart-cyan: #06B6D4;
         }
 
         * {
@@ -32,14 +40,106 @@
             align-items: flex-start;
         }
 
+        #app-container {
+            width: 100%;
+            max-width: 900px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #main-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 0 10px;
+        }
+
+        #update-time-text {
+            color: var(--text-sub);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        #toggle-view-btn {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s ease;
+        }
+
+        #toggle-view-btn:hover {
+            background-color: var(--card-bg);
+            border-color: #555;
+        }
+
         .dashboard {
             /* 頂級版本採用更長方形的 6 張獨立卡片，支援動態換行 */
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 20px;
-            max-width: 900px;
             width: 100%;
-            margin-top: 20px;
+        }
+
+        /* 歷史時序圖容器 */
+        #history-view {
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+            width: 100%;
+        }
+
+        #history-summary {
+            display: flex;
+            justify-content: space-around;
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            padding: 16px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .summary-item {
+            text-align: center;
+        }
+
+        .summary-label {
+            font-size: 14px;
+            color: var(--text-main);
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .summary-val {
+            font-size: 18px;
+            color: var(--text-main);
+            font-weight: 500;
+        }
+
+        .summary-unit {
+            font-size: 11px;
+            color: var(--text-sub);
+        }
+
+        .history-card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            padding: 16px;
+            width: 100%;
+            height: 250px;
         }
 
         .card {
@@ -56,10 +156,9 @@
         }
 
         .card-title {
-            font-size: 13px;
-            color: var(--text-sub);
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
+            font-size: 18px;
+            color: var(--text-main);
+            letter-spacing: 2px;
             font-weight: 700;
             margin-bottom: 20px;
             width: 100%;
@@ -110,15 +209,6 @@
             margin-top: 4px;
         }
 
-        .update-time {
-            grid-column: 1 / -1;
-            text-align: center;
-            color: var(--text-sub);
-            font-size: 13px;
-            margin-top: 10px;
-            margin-bottom: 20px;
-        }
-
         /* 手機版與平板版自適應 RWD */
         @media (max-width: 768px) {
             .dashboard {
@@ -144,8 +234,54 @@
 </head>
 
 <body>
-    <div class="dashboard" id="dashboard">
-        <!-- Dashboard populated by JS -->
+    <div id="app-container">
+        <!-- 頂端控制列 -->
+        <div id="main-header">
+            <div id="update-time-text">等待資料載入中...</div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <input type="date" id="history-date-picker"
+                    style="display: none; background: var(--bg-color); color: var(--text-main); border: 1px solid var(--border-color); padding: 7px 12px; border-radius: 8px; color-scheme: dark; font-size: 13px; font-weight: 500; cursor: pointer;"
+                    onchange="onDateChange()">
+                <button id="toggle-view-btn" onclick="toggleView()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 3v18h18" />
+                        <path d="m19 9-5 5-4-4-3 3" />
+                    </svg>
+                    切換時序圖
+                </button>
+            </div>
+        </div>
+
+        <!-- 儀表板視角 -->
+        <div class="dashboard" id="dashboard">
+            <!-- Dashboard populated by JS -->
+        </div>
+
+        <!-- 歷史時序圖視角 -->
+        <div id="history-view">
+            <div id="history-summary">
+                <!-- 由 JS 動態填入當日極值 -->
+            </div>
+            <div class="history-card">
+                <canvas id="chart-temp-dewpt"></canvas>
+            </div>
+            <div class="history-card">
+                <canvas id="chart-humidity"></canvas>
+            </div>
+            <div class="history-card">
+                <canvas id="chart-wind-speed"></canvas>
+            </div>
+            <div class="history-card" style="height: 200px;">
+                <canvas id="chart-wind-dir"></canvas>
+            </div>
+            <div class="history-card" style="height: 200px;">
+                <canvas id="chart-precip"></canvas>
+            </div>
+            <div class="history-card">
+                <canvas id="chart-pressure"></canvas>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -411,9 +547,8 @@
                             <div class="sub-value">PRESSURE</div>
                         </div>
                     </div>
-                    
-                    <div class="update-time">資料時間: ${new Date().toLocaleTimeString()}</div>
                 `;
+                document.getElementById('update-time-text').innerText = `資料時間: ${new Date().toLocaleTimeString()}`;
 
             } catch (error) {
                 console.error('獲取天氣數據失敗:', error);
@@ -423,6 +558,300 @@
 
         fetchWeatherData();
         setInterval(fetchWeatherData, 60000);
+
+        // ----------------------------------------------------
+        // 時序圖相關邏輯
+        // ----------------------------------------------------
+        let isHistoryView = false;
+
+        // 初始化日期選擇器為今天
+        const datePicker = document.getElementById('history-date-picker');
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        datePicker.value = `${yyyy}-${mm}-${dd}`;
+
+        // 當使用者改變日期時重新畫圖
+        function onDateChange() {
+            fetchHistoryData(datePicker.value);
+        }
+
+        // 切換視圖
+        function toggleView() {
+            const dashboard = document.getElementById('dashboard');
+            const historyView = document.getElementById('history-view');
+            const toggleBtn = document.getElementById('toggle-view-btn');
+
+            isHistoryView = !isHistoryView;
+
+            if (isHistoryView) {
+                dashboard.style.display = 'none';
+                historyView.style.display = 'flex';
+                datePicker.style.display = 'block'; // 顯示日期選擇器
+                toggleBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg> 返回儀表板';
+
+                // 打開切換時，自動根據當前選擇日期抓取資料
+                fetchHistoryData(datePicker.value);
+            } else {
+                dashboard.style.display = 'grid';
+                historyView.style.display = 'none';
+                datePicker.style.display = 'none'; // 隱藏日期選擇器
+                toggleBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg> 切換時序圖';
+            }
+        }
+
+        // 抓取指定日期，或是最後 24 小時資料
+        async function fetchHistoryData(dateStr) {
+            try {
+                // 如果有給日期就加上 Query 參數
+                const url = dateStr ? `/api/weather/history?date=${dateStr}` : '/api/weather/history';
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data && data.length > 0) {
+                    renderCharts(data);
+                } else {
+                    alert(`選取的日期 (${dateStr}) 沒有觀測紀錄。`);
+                    // Optionally clear charts here if you wish, for now we leave the old view
+                }
+            } catch (error) {
+                console.error('取得時序圖資料失敗:', error);
+            }
+        }
+
+        // 共用 Chart.js 全局設定
+        Chart.defaults.color = '#E4E4E7'; // 提亮文字顏色
+        Chart.defaults.font.family = "'Roboto', sans-serif";
+        Chart.defaults.font.size = 14;    // 設定預設字體大小
+        Chart.defaults.plugins.tooltip.mode = 'index';
+        Chart.defaults.plugins.tooltip.intersect = false;
+
+        const commonOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    grid: { color: '#3A3A3C', drawBorder: false },
+                    ticks: { maxTicksLimit: 12, font: { size: 13 } }
+                },
+                y: {
+                    grid: { color: '#3A3A3C', drawBorder: false },
+                    ticks: { font: { size: 13 } }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 8,
+                        boxHeight: 8,
+                        usePointStyle: true,
+                        font: { size: 12, weight: 'normal' }
+                    }
+                }
+            },
+            elements: { point: { radius: 0 } } // 預設取消打點
+        };
+
+        // 記錄圖表的實例供後續更新
+        let charts = {};
+
+        function renderCharts(data) {
+            // 解析資料陣列
+            // 如果資料量太大，可以在這裡做簡單均值採樣，但 1440 筆 Chart.js 畫起來非常順
+            const labels = data.map(d => {
+                const date = new Date(d.created_at);
+                return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+            });
+
+            const temps = data.map(d => d.temp);
+            const dewpts = data.map(d => d.dewpt);
+            const humidities = data.map(d => d.humidity);
+            const windSpeeds = data.map(d => (d.wind_speed / 3.6).toFixed(1)); // 轉 m/s
+            const windGusts = data.map(d => (d.wind_gust / 3.6).toFixed(1));   // 轉 m/s
+            const windDirs = data.map(d => (d.wind_dir + 180) % 360);          // 校正方向
+            const precipTotals = data.map(d => d.precip_total);
+            const precipRates = data.map(d => d.precip_rate);
+            const pressures = data.map(d => d.pressure);
+
+            // 計算極值並更新上方 Summary 面板
+            const maxTemp = Math.max(...temps);
+            const minTemp = Math.min(...temps);
+            const maxWindSpeed = Math.max(...windSpeeds);
+            const maxWindGust = Math.max(...windGusts);
+            const maxPrecipRate = Math.max(...precipRates);
+
+            // 從資料中提取第一筆資料的日期來顯示
+            const dataDate = data.length > 0 ? new Date(data[0].created_at) : new Date();
+            const dateStr = `${dataDate.getMonth() + 1}/${dataDate.getDate()}`; // 格式 MM/DD
+
+            document.getElementById('history-summary').innerHTML = `
+                <div class="summary-item" style="border-right: 1px solid var(--border-color); padding-right: 15px; margin-right: 5px; display: flex; flex-direction: column; justify-content: center;">
+                    <div class="summary-label" style="color: #F4F4F5;">日期</div>
+                    <div class="summary-val" style="font-size: 26px; font-weight: 700; color: #FFF;">${dateStr}</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">最高溫</div>
+                    <div class="summary-val">${maxTemp.toFixed(1)} <span class="summary-unit">°C</span></div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">最低溫</div>
+                    <div class="summary-val">${minTemp.toFixed(1)} <span class="summary-unit">°C</span></div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">最大風速</div>
+                    <div class="summary-val">${maxWindSpeed.toFixed(1)} <span class="summary-unit">m/s</span></div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">最大陣風</div>
+                    <div class="summary-val">${maxWindGust.toFixed(1)} <span class="summary-unit">m/s</span></div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-label">最大雨強</div>
+                    <div class="summary-val">${maxPrecipRate.toFixed(1)} <span class="summary-unit">mm/hr</span></div>
+                </div>
+            `;
+
+            // 1. 溫溼度 (Temperature & Dew Point)
+            const ctxTemp = document.getElementById('chart-temp-dewpt').getContext('2d');
+            if (charts.temp) charts.temp.destroy();
+            charts.temp = new Chart(ctxTemp, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: '溫度 (°C)', data: temps, borderColor: '#EF4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', borderWidth: 2, tension: 0.3 },
+                        { label: '露點 (°C)', data: dewpts, borderColor: '#22C55E', backgroundColor: 'rgba(34, 197, 94, 0.1)', borderWidth: 2, tension: 0.3 }
+                    ]
+                },
+                options: commonOptions
+            });
+
+            // x. 濕度 (Humidity)
+            const ctxHumidity = document.getElementById('chart-humidity').getContext('2d');
+            if (charts.humidity) charts.humidity.destroy();
+            charts.humidity = new Chart(ctxHumidity, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: '相對濕度 (%)', data: humidities, borderColor: '#0EA5E9', backgroundColor: 'rgba(14, 165, 233, 0.1)', borderWidth: 2, fill: true, tension: 0.3 }
+                    ]
+                },
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        x: commonOptions.scales.x,
+                        y: {
+                            ...commonOptions.scales.y,
+                            min: 0,
+                            max: 100
+                        }
+                    }
+                }
+            });
+
+            // 2. 風速與陣風
+            const ctxWindSpeed = document.getElementById('chart-wind-speed').getContext('2d');
+            if (charts.windSpeed) charts.windSpeed.destroy();
+            charts.windSpeed = new Chart(ctxWindSpeed, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: '平均風速 (m/s)', data: windSpeeds, borderColor: '#3B82F6', fill: true, backgroundColor: 'rgba(59, 130, 246, 0.2)', borderWidth: 2, tension: 0.3 },
+                        { label: '陣風 (m/s)', data: windGusts, borderColor: '#F97316', backgroundColor: '#F97316', borderWidth: 0, elements: { point: { radius: 2, pointStyle: 'circle' } }, showLine: false } // 陣風用灑點表現
+                    ] // 這裡刻意讓陣風顯示為點，與參考圖類似
+                },
+                options: commonOptions
+            });
+
+            // 3. 風向散佈圖
+            const ctxWindDir = document.getElementById('chart-wind-dir').getContext('2d');
+            if (charts.windDir) charts.windDir.destroy();
+
+            // 深層複製共用設定，因為 y 軸要特製成羅盤代號
+            const windDirOptions = JSON.parse(JSON.stringify(commonOptions));
+            windDirOptions.scales.y.min = 0;
+            windDirOptions.scales.y.max = 360;
+            windDirOptions.scales.y.ticks = {
+                stepSize: 90,
+                callback: function (value) {
+                    if (value === 0 || value === 360) return 'N';
+                    if (value === 90) return 'E';
+                    if (value === 180) return 'S';
+                    if (value === 270) return 'W';
+                    return value;
+                }
+            };
+            windDirOptions.elements.point.radius = 2; // 開啟打點
+
+            charts.windDir = new Chart(ctxWindDir, {
+                type: 'scatter', // 用散佈圖畫風向
+                data: {
+                    datasets: [{
+                        label: '風向',
+                        data: windDirs.map((dir, i) => ({ x: i, y: dir })),
+                        backgroundColor: '#3B82F6',
+                        borderColor: '#3B82F6'
+                    }]
+                },
+                options: {
+                    ...windDirOptions,
+                    scales: {
+                        x: {
+                            type: 'category',
+                            labels: labels,
+                            grid: { color: '#3A3A3C', drawBorder: false },
+                            ticks: { maxTicksLimit: 12 }
+                        },
+                        y: windDirOptions.scales.y
+                    },
+                    plugins: { legend: { position: 'bottom' } }
+                }
+            });
+
+            // 4. 降雨量
+            const ctxPrecip = document.getElementById('chart-precip').getContext('2d');
+            if (charts.precip) charts.precip.destroy();
+            charts.precip = new Chart(ctxPrecip, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: '累積日降雨 (mm)', data: precipTotals, borderColor: '#06B6D4', backgroundColor: 'rgba(6, 182, 212, 0.1)', borderWidth: 2, fill: true, tension: 0 },
+                        { label: '即時雨強 (mm/hr)', data: precipRates, borderColor: '#84CC16', backgroundColor: '#84CC16', type: 'bar' }
+                    ]
+                },
+                options: commonOptions
+            });
+
+            // 5. 氣壓
+            const ctxPressure = document.getElementById('chart-pressure').getContext('2d');
+            if (charts.pressure) charts.pressure.destroy();
+            charts.pressure = new Chart(ctxPressure, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: '氣壓 (hPa)', data: pressures, borderColor: '#E5E7EB', backgroundColor: 'rgba(229, 231, 235, 0.05)', borderWidth: 2, tension: 0.1 }
+                    ]
+                },
+                options: {
+                    ...commonOptions,
+                    scales: {
+                        x: commonOptions.scales.x,
+                        y: {
+                            ...commonOptions.scales.y,
+                            min: Math.floor(Math.min(...pressures)) - 2, // 動態取得最小值 -2 讓線條在中間稍微波動
+                            max: Math.ceil(Math.max(...pressures)) + 2
+                        }
+                    }
+                }
+            });
+        }
+
     </script>
 </body>
 
