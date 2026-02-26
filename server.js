@@ -36,19 +36,19 @@ app.get('/api/weather/latest', (req, res) => {
 async function fetchAndSaveWeatherData() {
     try {
         console.log(`[${new Date().toLocaleString()}] 正在抓取氣象資料...`);
-        
+
         // 1. 抓取遠端資料
         const response = await fetch(process.env.WEATHER_API_URL);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const data = await response.json();
         const obs = data.observations[0];
-        
+
         // 2. 更新全域暫存
         latestWeatherData = data;
-        
+
         // 3. 準備寫入 Supabase 的資料結構
         const record = {
             station_id: obs.stationID,
@@ -64,15 +64,20 @@ async function fetchAndSaveWeatherData() {
             raw_data: data
         };
 
-        // 4. 寫入資料庫
-        const { error } = await supabase
-            .from('weather_observations')
-            .insert([record]);
+        // 4. 判斷環境，只有在雲端 (Production) 才寫入資料庫
+        // 本機開發時 (Development) 僅供前端讀取，不將重複資料寫入資料庫
+        if (process.env.NODE_ENV === 'production') {
+            const { error } = await supabase
+                .from('weather_observations')
+                .insert([record]);
 
-        if (error) {
-            console.error('寫入 Supabase 時發生錯誤:', error);
+            if (error) {
+                console.error('寫入 Supabase 時發生錯誤:', error);
+            } else {
+                console.log('成功將最新資料寫入 Supabase!');
+            }
         } else {
-            console.log('成功將最新資料寫入 Supabase!');
+            console.log('當前為本機開發模式 (development)，已暫停寫入資料庫，以避免與雲端重複寫入。');
         }
 
     } catch (error) {
@@ -84,7 +89,7 @@ async function fetchAndSaveWeatherData() {
 // 為了避免一啟動因為缺 Key 直接崩潰，我們先檢查是否有輸入 KEY
 if (supabaseUrl && supabaseUrl !== '請填寫您的_Project_URL' && supabaseKey && supabaseKey !== '請填寫您的_Service_Role_Key') {
     fetchAndSaveWeatherData();
-    
+
     // 設定 Cron Job: 每 1 分鐘執行一次
     // 若覺得太頻繁可以改成 '*/5 * * * *' (每 5 分鐘)
     cron.schedule('* * * * *', () => {
