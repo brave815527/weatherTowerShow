@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Weather Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* 針對參考圖片高度還原深灰質感 */
+            --bg-color: #1A1A1C;
+            --card-bg: #2C2C2E;
+            --text-main: #FFFFFF;
+            --text-sub: #A1A1AA;
+            --border-color: #3A3A3C;
+        }
+
+        * {
+            box-sizing: border-box;
+            font-family: 'Roboto', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        .dashboard {
+            /* 頂級版本採用更長方形的 6 張獨立卡片，支援動態換行 */
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            max-width: 900px;
+            width: 100%;
+            margin-top: 20px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 20px;
+            /* 圓潤外框 */
+            border: 1px solid var(--border-color);
+            /* 仿製 Apple 的 1px 光澤感 */
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .card-title {
+            font-size: 13px;
+            color: var(--text-sub);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .widget-container {
+            width: 140px;
+            height: 140px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .value-box {
+            margin-top: auto;
+            width: 100%;
+        }
+
+        .main-value {
+            font-size: 42px;
+            font-weight: 400;
+            line-height: 1;
+        }
+
+        .unit {
+            font-size: 18px;
+            color: var(--text-sub);
+            margin-left: 2px;
+            vertical-align: super;
+        }
+
+        .sub-value {
+            font-size: 12px;
+            color: #8E8E93;
+            text-transform: uppercase;
+            font-weight: 500;
+            margin-top: 10px;
+            letter-spacing: 0.5px;
+        }
+
+        .sub-value-2 {
+            font-size: 12px;
+            color: #8E8E93;
+            text-transform: uppercase;
+            margin-top: 4px;
+        }
+
+        .update-time {
+            grid-column: 1 / -1;
+            text-align: center;
+            color: var(--text-sub);
+            font-size: 13px;
+            margin-top: 10px;
+            margin-bottom: 20px;
+        }
+
+        /* 手機版與平板版自適應 RWD */
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 480px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+
+            .widget-container {
+                width: 120px;
+                height: 120px;
+            }
+
+            .main-value {
+                font-size: 36px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard" id="dashboard">
+        <!-- Dashboard populated by JS -->
+    </div>
+
+    <script>
+        const API_URL = '/api/weather/latest';
+
+        function getWindDirection(degree) {
+            const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+            const index = Math.floor((degree + 11.25) / 22.5) % 16;
+            return directions[index];
+        }
+
+        /* 1. 溫度: 漸層彩色圓弧儀表板 (SVG 內建多段路徑實作) */
+        function buildSVGTempGauge(temp) {
+            const minT = -10; const maxT = 40;
+            let percent = (temp - minT) / (maxT - minT);
+            if (percent < 0) percent = 0; if (percent > 1) percent = 1;
+            const angle = -135 + (percent * 270);
+
+            // 為了讓漸層完美順著圓弧，且不在各個瀏覽器上破圖
+            // 最穩定的做法是將圓弧拆成兩半：左半邊(冷色系) & 右半邊(暖色系)
+            // 並各自使用直向/橫向的線性漸層來黏合，視覺上就會像是順著圓弧變色
+            return `
+            <svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.6));">
+                <defs>
+                    <!-- 左半邊：由下(深藍) 到 上(亮綠) -->
+                    <linearGradient id="coolGrad" x1="0%" y1="100%" x2="0%" y2="0%">
+                        <stop offset="0%" stop-color="#145A6E" />  <!-- 深青/藍 -->
+                        <stop offset="20%" stop-color="#8CD0E3" /> <!-- 淺藍 -->
+                        <stop offset="60%" stop-color="#1A8A4D" /> <!-- 深綠 -->
+                        <stop offset="100%" stop-color="#84C665" /> <!-- 亮綠 -->
+                    </linearGradient>
+                    <!-- 右半邊：由上(橘黃) 到 下(紫紅) -->
+                    <linearGradient id="warmGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#FCE182" />   <!-- 鵝黃 -->
+                        <stop offset="30%" stop-color="#F28E19" />  <!-- 橘色 -->
+                        <stop offset="60%" stop-color="#DE1A2C" />  <!-- 紅色 -->
+                        <stop offset="100%" stop-color="#702282" /> <!-- 紫色 -->
+                    </linearGradient>
+                </defs>
+                
+                <!-- 底部暗黑背景圓弧 -->
+                <path d="M 22 75 A 38 38 0 1 1 78 75" fill="none" stroke="#222" stroke-width="16" stroke-linecap="round" />
+                
+                <!-- 左半邊溫度軌道 (使用 stroke-dasharray 切割一半) -->
+                <!-- 圓半徑 r=38, 圓周長為 238.76, 1/2 圓弧長度大概是 119 -->
+                <path d="M 22 75 A 38 38 0 0 1 50 12" fill="none" stroke="url(#coolGrad)" stroke-width="16" stroke-linecap="round" />
+                
+                <!-- 右半邊溫度軌道 -->
+                <path d="M 50 12 A 38 38 0 0 1 78 75" fill="none" stroke="url(#warmGrad)" stroke-width="16" stroke-linecap="round" />
+                
+                <!-- 白色指針 -->
+                <g transform="translate(50, 50) rotate(${angle})">
+                    <line x1="0" y1="0" x2="0" y2="-28" stroke="#FFF" stroke-width="4.5" stroke-linecap="round"/>
+                    <circle cx="0" cy="0" r="7" fill="#FFF"/>
+                </g>
+            </svg>
+            `;
+        }
+
+        /* 2. 露點: 藍色漸層水滴 */
+        function buildSVGDewPoint() {
+            return `
+            <svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 8px rgba(0,0,0,0.5));">
+                <defs>
+                    <linearGradient id="dropGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                        <stop offset="0%" stop-color="#38BDF8" />
+                        <stop offset="100%" stop-color="#0284C7" />
+                    </linearGradient>
+                </defs>
+                <path d="M50 15 C 50 15, 20 50, 20 70 A 30 30 0 0 0 80 70 C 80 50, 50 15, 50 15 Z" fill="url(#dropGradient)" />
+                <circle cx="50" cy="70" r="14" fill="#7DD3FC" opacity="0.4"/>
+            </svg>
+            `;
+        }
+
+        /* 3. 濕度: 雷達掃描圓餅 */
+        function buildSVGHumidity(hum) {
+            const radius = 38;
+            const circum = 2 * Math.PI * radius;
+            const dash = (hum / 100) * circum;
+            return `
+            <svg viewBox="0 0 100 100" style="width:100%; height:100%; transform: rotate(-90deg); filter: drop-shadow(0 0 8px rgba(0,0,0,0.5));">
+                <!-- 底部暗灰圈 -->
+                <circle cx="50" cy="50" r="${radius}" fill="#455A64" opacity="0.3" />
+                <!-- 藍色環形 (依據濕度填滿) -->
+                <circle cx="50" cy="50" r="${radius}" fill="none" stroke="#0EA5E9" stroke-width="24" stroke-dasharray="${dash} ${circum}" opacity="0.85" />
+                <!-- 內部深色圓 -->
+                <circle cx="50" cy="50" r="26" fill="var(--card-bg)" />
+            </svg>
+            `;
+        }
+
+        /* 4. 風向風速: 具羅盤刻度的動態圓盤 */
+        function buildSVGWind(dir) {
+            let ticks = '';
+            for (let i = 0; i < 360; i += 5) {
+                const isMajor = i % 90 === 0;
+                const len = isMajor ? 5 : 2;
+                ticks += `<line x1="50" y1="8" x2="50" y2="${8 + len}" stroke="${isMajor ? '#FFF' : '#666'}" stroke-width="${isMajor ? 2 : 1}" transform="rotate(${i} 50 50)" />`;
+            }
+            return `
+            <svg viewBox="0 0 100 100" style="width:100%; height:100%;">
+                ${ticks}
+                <!-- 羅盤文字 -->
+                <text x="50" y="24" fill="#FFF" font-size="9" font-weight="bold" text-anchor="middle">N</text>
+                <text x="50" y="83" fill="#FFF" font-size="9" font-weight="bold" text-anchor="middle">S</text>
+                <text x="22" y="53" fill="#FFF" font-size="9" font-weight="bold" text-anchor="middle">W</text>
+                <text x="78" y="53" fill="#FFF" font-size="9" font-weight="bold" text-anchor="middle">E</text>
+                
+                <!-- 動態風向箭頭 -->
+                <g transform="translate(50,50) rotate(${dir})">
+                    <polygon points="-5,-30 5,-30 0,-42" fill="#FFF" />
+                </g>
+            </svg>
+            `;
+        }
+
+        /* 5. 降雨: 立體網狀量筒 */
+        function buildSVGPrecip(precip) {
+            // 抓取最大裝水量，假設 50mm 為滿
+            let percent = precip / 50; if (percent > 1) percent = 1;
+            const h = 50 * percent;
+            return `
+            <svg viewBox="0 0 100 100" style="width:100%; height:100%; filter: drop-shadow(0 0 5px rgba(0,0,0,0.3));">
+                <!-- 圓柱頂部開口 -->
+                <ellipse cx="50" cy="25" rx="20" ry="6" fill="none" stroke="#666" stroke-width="2"/>
+                <!-- 圓柱邊緣與底座 -->
+                <path d="M 30 25 L 30 75 A 20 6 0 0 0 70 75 L 70 25" fill="none" stroke="#666" stroke-width="2"/>
+                
+                <!-- 若有降水則以藍色填充高度 -->
+                ${h > 0 ? `<path d="M 30 ${75 - h} L 30 75 A 20 6 0 0 0 70 75 L 70 ${75 - h} A 20 6 0 0 1 30 ${75 - h}" fill="#38BDF8" opacity="0.6"/>` : ''}
+            </svg>
+            `;
+        }
+
+        /* 6. 氣壓: 小時鐘般的指針類比刻度 */
+        function buildSVGPressure(press) {
+            // 將 950 ~ 1050 的氣壓範圍映射到羅盤的 270 度
+            const minP = 950; const maxP = 1050;
+            let percent = (press - minP) / (maxP - minP);
+            if (percent < 0) percent = 0; if (percent > 1) percent = 1;
+            const angle = -135 + (percent * 270);
+
+            let ticks = '';
+            for (let i = 0; i <= 100; i += 2) {
+                const a = -135 + (i * 2.7);
+                const isMajor = i % 10 === 0;
+                const len = isMajor ? 6 : 3;
+                ticks += `<line x1="50" y1="12" x2="50" y2="${12 + len}" stroke="${isMajor ? '#CCC' : '#666'}" stroke-width="${isMajor ? 2 : 1}" transform="rotate(${a} 50 50)" />`;
+            }
+
+            return `
+            <svg viewBox="0 0 100 100" style="width:100%; height:100%;">
+                <!-- 氣壓計邊框 -->
+                <circle cx="50" cy="50" r="42" fill="#3A3A3C" stroke="#222" stroke-width="2"/>
+                <!-- 白色圓盤 -->
+                <circle cx="50" cy="50" r="38" fill="#F4F4F5"/>
+                ${ticks}
+                
+                <!-- 羅盤數字 -->
+                <g fill="#111" font-size="5" text-anchor="middle" font-weight="bold">
+                    <text x="50" y="27" transform="rotate(-90 50 50)">950</text>
+                    <text x="50" y="27" transform="rotate(-40 50 50)">982</text>
+                    <text x="50" y="27" transform="rotate(10 50 50)">1013</text>
+                    <text x="50" y="27" transform="rotate(60 50 50)">1040</text>
+                </g>
+
+                <!-- 紅色指針 -->
+                <g transform="translate(50, 50) rotate(${angle})">
+                    <line x1="0" y1="0" x2="0" y2="-28" stroke="#EF4444" stroke-width="2.5" stroke-linecap="round"/>
+                    <circle cx="0" cy="0" r="4.5" fill="#EF4444"/>
+                    <circle cx="0" cy="-20" r="2" fill="#FFF"/> <!-- 紅色指針上的白光澤點 -->
+                </g>
+                <circle cx="50" cy="50" r="1.5" fill="#000"/>
+            </svg>
+            `;
+        }
+
+        async function fetchWeatherData() {
+            try {
+                const response = await fetch(API_URL);
+                const data = await response.json();
+                const obs = data.observations[0];
+                const metric = obs.metric;
+
+                // 風向風速處理
+                const reversedWindDir = (obs.winddir + 180) % 360;
+                const windSpeedKmh = metric.windSpeed;
+                const windGustKmh = metric.windGust;
+                // 注意：參考圖片風速使用的是 kph (km/h)，因使用者先前要求 m/s，這裡我們維持 m/s
+                const windSpeedMsNum = metric.windSpeed / 3.6;
+                const windGustMsNum = metric.windGust / 3.6;
+
+                const dashboard = document.getElementById('dashboard');
+
+                // 生產 HTML (6卡片)
+                dashboard.innerHTML = `
+                    <div class="card">
+                        <div class="card-title">目前溫度</div>
+                        <div class="widget-container">
+                            ${buildSVGTempGauge(metric.temp)}
+                        </div>
+                        <div class="value-box">
+                            <span class="main-value">${metric.temp}</span><span class="unit">°C</span>
+                            <div class="sub-value">TEMPERATURE</div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">露點溫度</div>
+                        <div class="widget-container">
+                            ${buildSVGDewPoint()}
+                        </div>
+                        <div class="value-box">
+                            <span class="main-value">${metric.dewpt}</span><span class="unit">°C</span>
+                            <div class="sub-value">DEW POINT</div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">相對濕度</div>
+                        <div class="widget-container">
+                            ${buildSVGHumidity(obs.humidity)}
+                        </div>
+                        <div class="value-box">
+                            <span class="main-value">${obs.humidity}</span><span class="unit">%</span>
+                            <div class="sub-value">HUMIDITY</div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">風向風速</div>
+                        <div class="widget-container">
+                            ${buildSVGWind(reversedWindDir)}
+                        </div>
+                        <div class="value-box">
+                            <span class="main-value">${windSpeedMsNum.toFixed(1)}</span><span class="unit">m/s</span>
+                            <div class="sub-value">Gusts ${windGustMsNum.toFixed(1)} m/s</div>
+                            <div class="sub-value-2">${reversedWindDir}° ${getWindDirection(reversedWindDir)}</div>
+                            <div class="sub-value-2" style="margin-top: 8px;">WIND</div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">日降雨量</div>
+                        <div class="widget-container">
+                            ${buildSVGPrecip(metric.precipTotal)}
+                        </div>
+                        <div class="value-box">
+                            <span class="main-value">${metric.precipTotal.toFixed(1)}</span><span class="unit">mm</span>
+                            <div class="sub-value">${metric.precipRate.toFixed(1)} MM/HR</div>
+                            <div class="sub-value-2">PRECIPITATION</div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-title">大氣壓力</div>
+                        <div class="widget-container">
+                            ${buildSVGPressure(metric.pressure)}
+                        </div>
+                        <div class="value-box">
+                            <span class="main-value">${Math.round(metric.pressure)}</span><span class="unit">hPa</span>
+                            <div class="sub-value">PRESSURE</div>
+                        </div>
+                    </div>
+                    
+                    <div class="update-time">資料時間: ${new Date().toLocaleTimeString()}</div>
+                `;
+
+            } catch (error) {
+                console.error('獲取天氣數據失敗:', error);
+                document.getElementById('dashboard').innerHTML = '<div style="color:white;text-align:center;width:100%;grid-column: 1/-1;">無法載入資料，請確認後端伺服器已啟動。</div>';
+            }
+        }
+
+        fetchWeatherData();
+        setInterval(fetchWeatherData, 60000);
+    </script>
+</body>
+
+</html>
