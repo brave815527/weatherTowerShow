@@ -170,25 +170,56 @@
         }
 
         .chart-section {
-            background-color: #161618;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-            padding: 20px;
+            background-color: rgba(22, 22, 24, 0.85);
+            /* 與卡片同步透明度 */
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 22px;
             width: 100%;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
         }
 
         .chart-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
 
         .chart-title-main {
             font-size: 20px;
-            color: #DDD;
+            /* 放大標題對齊卡片 */
+            color: #00E5FF;
+            /* 採用青藍色 */
             margin: 0;
-            font-weight: 400;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        /* LIVE 指示燈呼吸動畫 */
+        @keyframes pulse-red {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4);
+            }
+
+            70% {
+                opacity: 0.6;
+                transform: scale(1.1);
+                box-shadow: 0 0 0 10px rgba(231, 76, 60, 0);
+            }
+
+            100% {
+                opacity: 1;
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(231, 76, 60, 0);
+            }
+        }
+
+        #carousel-indicator {
+            animation: pulse-red 2s infinite;
         }
 
         .chart-badges {
@@ -198,13 +229,15 @@
         }
 
         .badge {
-            background-color: #2D2D2D;
-            padding: 4px 10px;
+            background-color: rgba(45, 45, 45, 0.8);
+            padding: 6px 12px;
             border-radius: 20px;
-            font-size: 13px;
+            font-size: 14px;
+            /* 放大標籤字體 */
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .badge-type {
