@@ -264,6 +264,22 @@
             <!-- Dashboard populated by JS -->
         </div>
 
+        <!-- 輪播式時序圖 (儀表板下方) -->
+        <div id="dashboard-carousel" class="chart-section"
+            style="margin-top: 30px; border-top: 1px solid #333; padding-top: 20px;">
+            <div class="chart-header">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span id="carousel-indicator"
+                        style="width: 8px; height: 8px; border-radius: 50%; background: #E74C3C; display: inline-block;"></span>
+                    <h3 class="chart-title-main" id="carousel-title" style="margin: 0;">載入歷史趨勢中...</h3>
+                </div>
+                <div class="chart-badges" id="carousel-badges"></div>
+            </div>
+            <div class="history-card" style="height: 350px;">
+                <canvas id="chart-carousel"></canvas>
+            </div>
+        </div>
+
         <!-- 歷史時序圖視角 -->
         <div id="history-view">
             <!-- 溫度 -->
@@ -607,6 +623,7 @@
         }
 
         fetchWeatherData();
+        fetchHistoryData(); // 同時抓取歷史資料供輪播使用
         setInterval(fetchWeatherData, 60000);
 
         // ----------------------------------------------------
@@ -629,6 +646,7 @@
 
         function toggleView() {
             const dashboard = document.getElementById('dashboard');
+            const carousel = document.getElementById('dashboard-carousel');
             const historyView = document.getElementById('history-view');
             const toggleBtn = document.getElementById('toggle-view-btn');
 
@@ -636,15 +654,19 @@
 
             if (isHistoryView) {
                 dashboard.style.display = 'none';
+                carousel.style.display = 'none';
                 historyView.style.display = 'flex';
                 datePicker.style.display = 'block';
                 toggleBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg> 返回儀表板';
                 fetchHistoryData(datePicker.value);
             } else {
                 dashboard.style.display = 'grid';
+                carousel.style.display = 'block';
                 historyView.style.display = 'none';
                 datePicker.style.display = 'none';
                 toggleBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg> 切換時序圖';
+                // 返回儀表板時，自動重置一次輪播資料，維持同步
+                fetchHistoryData();
             }
         }
 
@@ -737,7 +759,176 @@
             }
         };
 
+        // --- Carousel Logic ---
+        let carouselIndex = 0;
+        let carouselIntervalId = null;
+        let lastHistoryData = [];
+
+        function startCarousel(data) {
+            lastHistoryData = data;
+            if (carouselIntervalId) clearInterval(carouselIntervalId);
+
+            // 立即執行第一次
+            renderSingleCarousel();
+
+            // 每 5 秒切換
+            carouselIntervalId = setInterval(() => {
+                carouselIndex = (carouselIndex + 1) % 6;
+                renderSingleCarousel();
+            }, 5000);
+        }
+
+        function renderSingleCarousel() {
+            if (!lastHistoryData.length) return;
+            const data = lastHistoryData;
+            const titleEl = document.getElementById('carousel-title');
+            const badgesEl = document.getElementById('carousel-badges');
+            const ctx = document.getElementById('chart-carousel').getContext('2d');
+
+            if (charts.carousel) charts.carousel.destroy();
+
+            const labels = data.map(d => {
+                const date = new Date(d.created_at);
+                return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
+            });
+
+            switch (carouselIndex) {
+                case 0: // Temperature
+                    titleEl.innerText = 'TemperatureTrend (°C)';
+                    const tempStats = getWindowStats(data, 'temp', 15);
+                    createBadges(tempStats, '°C', 'carousel-badges', { min: '#C0392B', avg: '#E74C3C', max: '#7B241C' });
+                    charts.carousel = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                { label: 'Min', data: tempStats.mins, borderColor: '#C0392B', borderWidth: 1, fill: false, tension: 0.4 },
+                                { label: 'Avg', data: tempStats.avgs, borderColor: '#E74C3C', borderWidth: 3, fill: false, tension: 0.4 },
+                                { label: 'Max', data: tempStats.maxs, borderColor: '#7B241C', borderWidth: 1, fill: false, tension: 0.4 },
+                                { label: 'Dewpoint', data: data.map(d => d.dewpt), borderColor: '#1ABC9C', borderWidth: 1, fill: false, tension: 0.4 }
+                            ]
+                        },
+                        options: commonOptions
+                    });
+                    break;
+                case 1: // Humidity
+                    titleEl.innerText = 'Humidity Trend (%)';
+                    const humStats = getWindowStats(data, 'humidity', 15);
+                    createBadges(humStats, '%', 'carousel-badges', { min: '#1F618D', avg: '#2980B9', max: '#1B4F72' });
+                    charts.carousel = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                { label: 'Min', data: humStats.mins, borderColor: '#1F618D', borderWidth: 1, fill: false, tension: 0.4 },
+                                { label: 'Avg', data: humStats.avgs, borderColor: '#2980B9', borderWidth: 3, fill: false, tension: 0.4 },
+                                { label: 'Max', data: humStats.maxs, borderColor: '#1B4F72', borderWidth: 1, fill: false, tension: 0.4 }
+                            ]
+                        },
+                        options: commonOptions
+                    });
+                    break;
+                case 2: // Wind Speed
+                    titleEl.innerText = 'Wind Speed Trend (m/s)';
+                    const windStats = getWindowStats(data, 'wind_speed', 15);
+                    const processedWind = {
+                        mins: windStats.mins.map(v => v / 3.6),
+                        maxs: windStats.maxs.map(v => v / 3.6),
+                        avgs: windStats.avgs.map(v => v / 3.6),
+                        gusts: data.map(d => d.wind_gust / 3.6)
+                    };
+                    createBadges(processedWind, 'm/s', 'carousel-badges', { min: '#117864', avg: '#1ABC9C', max: '#0E6251', gust: '#D35400' });
+                    charts.carousel = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                { label: 'Min', data: processedWind.mins, borderColor: '#117864', borderWidth: 1, tension: 0.4 },
+                                { label: 'Avg', data: processedWind.avgs, borderColor: '#1ABC9C', borderWidth: 3, tension: 0.4 },
+                                { label: 'Max', data: processedWind.maxs, borderColor: '#0E6251', borderWidth: 1, tension: 0.4 },
+                                { label: 'Gust', data: processedWind.gusts, backgroundColor: '#D35400', pointRadius: 3, showLine: false, pointStyle: 'circle' }
+                            ]
+                        },
+                        options: commonOptions
+                    });
+                    break;
+                case 3: // Wind Direction
+                    titleEl.innerText = 'Wind Direction (°)';
+                    const windDirs = data.map(d => (d.wind_dir + 180) % 360);
+                    const avgDir = windDirs.reduce((a, b) => a + (b || 0), 0) / windDirs.filter(v => v != null).length;
+                    badgesEl.innerHTML = `<div class="badge"><span class="badge-type" style="background:#2E86C1">Avg</span> <span class="badge-val">${avgDir.toFixed(0)}° (${getWindDirection(avgDir)})</span></div>`;
+                    charts.carousel = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Direction',
+                                data: windDirs,
+                                backgroundColor: '#2E86C1',
+                                pointRadius: 2,
+                                showLine: false,
+                                pointStyle: 'circle'
+                            }]
+                        },
+                        options: {
+                            ...commonOptions,
+                            scales: {
+                                ...commonOptions.scales,
+                                y: {
+                                    min: 0, max: 360,
+                                    ticks: {
+                                        stepSize: 45,
+                                        callback: (v) => v + '°'
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    break;
+                case 4: // Pressure
+                    titleEl.innerText = 'Pressure Trend (hPa)';
+                    const pressStats = getWindowStats(data, 'pressure', 15);
+                    createBadges(pressStats, 'hPa', 'carousel-badges', { min: '#7D3C98', avg: '#AF7AC5', max: '#4A235A' });
+                    charts.carousel = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [
+                                { label: 'Min', data: pressStats.mins, borderColor: '#7D3C98', borderWidth: 1, tension: 0.4 },
+                                { label: 'Avg', data: pressStats.avgs, borderColor: '#AF7AC5', borderWidth: 3, tension: 0.4 },
+                                { label: 'Max', data: pressStats.maxs, borderColor: '#4A235A', borderWidth: 1, tension: 0.4 }
+                            ]
+                        },
+                        options: commonOptions
+                    });
+                    break;
+                case 5: // Precipitation
+                    titleEl.innerText = 'Precipitation Trend (mm)';
+                    const totalRain = data.length > 0 ? data[data.length - 1].precip_total : 0;
+                    const maxRainDaily = Math.max(...data.map(d => d.precip_total));
+                    let hourlyData = new Array(labels.length).fill(0);
+                    for (let i = 1; i < data.length; i++) {
+                        const diff = Math.max(0, data[i].precip_total - data[i - 1].precip_total);
+                        if (diff > 0) hourlyData[i] = diff;
+                    }
+                    badgesEl.innerHTML = `
+                        <div class="badge"><span class="badge-type" style="background:#2E86C1">Total</span> <span class="badge-val">${totalRain.toFixed(1)} mm</span></div>
+                        <div class="badge"><span class="badge-type" style="background:#1B4F72">Max</span> <span class="badge-val">${maxRainDaily.toFixed(1)} mm</span></div>
+                    `;
+                    charts.carousel = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [{ label: 'Total', data: hourlyData, backgroundColor: '#2E86C1', borderRadius: 2, barPercentage: 1.0, categoryPercentage: 1.0 }]
+                        },
+                        options: { ...commonOptions, scales: { ...commonOptions.scales, y: { ...commonOptions.scales.y, beginAtZero: true, suggestedMax: 1.0 } } }
+                    });
+                    break;
+            }
+        }
+
         function renderCharts(data) {
+            startCarousel(data);
             const labels = data.map(d => {
                 const date = new Date(d.created_at);
                 return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
@@ -825,19 +1016,22 @@
             const ctxWindDir = document.getElementById('chart-wind-dir').getContext('2d');
             if (charts.windDir) charts.windDir.destroy();
             charts.windDir = new Chart(ctxWindDir, {
-                type: 'scatter',
+                type: 'line',
                 data: {
+                    labels: labels,
                     datasets: [{
                         label: 'Direction',
-                        data: windDirs.map((v, i) => ({ x: i, y: v })),
+                        data: windDirs,
                         backgroundColor: '#2E86C1',
-                        pointRadius: 2
+                        pointRadius: 2,
+                        showLine: false,
+                        pointStyle: 'circle'
                     }]
                 },
                 options: {
                     ...commonOptions,
                     scales: {
-                        x: { grid: { color: '#222' }, ticks: { display: false } },
+                        ...commonOptions.scales,
                         y: {
                             min: 0, max: 360,
                             ticks: {
