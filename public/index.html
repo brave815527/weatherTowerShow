@@ -93,22 +93,30 @@
         }
 
         .card {
-            background-color: var(--card-bg);
+            background-color: rgba(20, 24, 30, 0.85);
+            /* 稍微增加透明度並帶一點深藍 */
             border-radius: 12px;
-            border: 1px solid var(--border-color);
-            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 22px;
             display: flex;
             flex-direction: column;
             align-items: center;
             text-align: center;
+            backdrop-filter: blur(8px);
+            /* 玻璃擬態效果 */
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
         }
 
         .card-title {
-            font-size: 14px;
-            color: #999;
+            font-size: 20px;
+            color: #00E5FF;
+            /* 採用鮮亮的青藍色作為標題 */
             text-transform: uppercase;
-            font-weight: 700;
-            margin-bottom: 15px;
+            font-weight: 800;
+            margin-bottom: 20px;
+            width: 100%;
+            border-bottom: 1px solid rgba(0, 229, 255, 0.2);
+            padding-bottom: 10px;
             letter-spacing: 1px;
         }
 
@@ -119,30 +127,37 @@
         }
 
         .main-value {
-            font-size: 36px;
-            font-weight: 300;
+            font-size: 50px;
+            /* 大幅放大數值 */
+            font-weight: 800;
             line-height: 1;
+            color: #FFFFFF;
+            /* 純白高對比 */
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
         }
 
         .unit {
-            font-size: 14px;
-            color: var(--text-sub);
-            margin-left: 2px;
+            font-size: 18px;
+            color: #FFFFFF;
+            margin-left: 4px;
             vertical-align: baseline;
+            opacity: 0.9;
         }
 
         .sub-value {
-            font-size: 11px;
-            color: #666;
+            font-size: 14px;
+            color: #BBB;
             text-transform: uppercase;
-            margin-top: 10px;
-            letter-spacing: 0.5px;
+            margin-top: 12px;
+            letter-spacing: 1px;
+            font-weight: 500;
         }
 
         .sub-value-2 {
-            font-size: 11px;
-            color: #666;
-            margin-top: 4px;
+            font-size: 14px;
+            color: #AAA;
+            margin-top: 6px;
+            font-weight: 500;
         }
 
         /* 時序圖新樣式 - 模仿 Weathercloud */
@@ -285,7 +300,7 @@
             <!-- 溫度 -->
             <div class="chart-section">
                 <div class="chart-header">
-                    <h3 class="chart-title-main">Temperature (°C)</h3>
+                    <h3 class="chart-title-main">溫度 (°C)</h3>
                     <div class="chart-badges" id="badges-temp"></div>
                 </div>
                 <div class="history-card">
@@ -296,7 +311,7 @@
             <!-- 濕度 -->
             <div class="chart-section">
                 <div class="chart-header">
-                    <h3 class="chart-title-main">Humidity (%)</h3>
+                    <h3 class="chart-title-main">濕度 (%)</h3>
                     <div class="chart-badges" id="badges-humidity"></div>
                 </div>
                 <div class="history-card">
@@ -307,7 +322,7 @@
             <!-- 風速 -->
             <div class="chart-section">
                 <div class="chart-header">
-                    <h3 class="chart-title-main">Wind speed (m/s)</h3>
+                    <h3 class="chart-title-main">風速 (m/s)</h3>
                     <div class="chart-badges" id="badges-windspeed"></div>
                 </div>
                 <div class="history-card">
@@ -318,7 +333,7 @@
             <!-- 風向 -->
             <div class="chart-section">
                 <div class="chart-header">
-                    <h3 class="chart-title-main">Wind direction (°)</h3>
+                    <h3 class="chart-title-main">風向 (°)</h3>
                     <div class="chart-badges" id="badges-winddir"></div>
                 </div>
                 <div class="history-card">
@@ -329,7 +344,7 @@
             <!-- 氣壓 -->
             <div class="chart-section">
                 <div class="chart-header">
-                    <h3 class="chart-title-main">Atmospheric pressure (hPa)</h3>
+                    <h3 class="chart-title-main">大氣壓力 (hPa)</h3>
                     <div class="chart-badges" id="badges-pressure"></div>
                 </div>
                 <div class="history-card">
@@ -340,7 +355,7 @@
             <!-- 降雨 -->
             <div class="chart-section">
                 <div class="chart-header">
-                    <h3 class="chart-title-main">Precipitation (mm)</h3>
+                    <h3 class="chart-title-main">降雨量 (mm)</h3>
                     <div class="chart-badges" id="badges-precip"></div>
                 </div>
                 <div class="history-card">
@@ -585,7 +600,7 @@
                         </div>
                         <div class="value-box">
                             <span class="main-value">${windSpeedMsNum.toFixed(1)}</span><span class="unit">m/s</span>
-                            <div class="sub-value">Gusts ${windGustMsNum.toFixed(1)} m/s</div>
+                            <div class="sub-value">GUST ${windGustMsNum.toFixed(1)} m/s</div>
                             <div class="sub-value-2">${reversedWindDir}° ${getWindDirection(reversedWindDir)}</div>
                             <div class="sub-value-2" style="margin-top: 8px;">WIND</div>
                         </div>
@@ -622,9 +637,23 @@
             }
         }
 
-        fetchWeatherData();
-        fetchHistoryData(); // 同時抓取歷史資料供輪播使用
-        setInterval(fetchWeatherData, 60000);
+        function init() {
+            // OBS 專用邏輯
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('obs') === 'true') {
+                document.getElementById('main-header').style.display = 'none';
+                document.getElementById('dashboard-carousel').style.borderTop = 'none';
+                document.getElementById('dashboard-carousel').style.marginTop = '15px';
+                document.body.style.background = 'transparent';
+                document.getElementById('app-container').style.padding = '0';
+            }
+
+            fetchWeatherData();
+            fetchHistoryData(); // 同時抓取歷史資料供輪播使用
+            setInterval(fetchWeatherData, 60000);
+        }
+
+        init();
 
         // ----------------------------------------------------
         // 時序圖相關邏輯
@@ -727,34 +756,49 @@
                 html += badgeHtml;
             }
 
+            // 特殊處理：如果有 Dewpoint
+            if (stats.dewpts && colors.dewpt) {
+                const avgDew = stats.dewpts.reduce((a, b) => a + (b || 0), 0) / stats.dewpts.filter(v => v != null).length;
+                const badgeHtml = `<div class="badge"><span class="badge-type" style="background:${colors.dewpt}">Dewpt</span> <span class="badge-val">${avgDew.toFixed(1)} ${unit}</span></div>`;
+                html += badgeHtml;
+            }
+
             container.innerHTML = html;
         }
 
         // Chart.js 共用設定
-        Chart.defaults.color = '#777';
+        Chart.defaults.color = '#FFFFFF';
         Chart.defaults.font.family = "'Roboto', sans-serif";
+        Chart.defaults.font.size = 14;
         const commonOptions = {
             responsive: true,
             maintainAspectRatio: false,
-            elements: { point: { radius: 0 }, line: { tension: 0.4, borderWidth: 2 } },
+            elements: {
+                point: { radius: 0 },
+                line: { tension: 0.4, borderWidth: 4 } // 加粗平均線 (Avg) 到 4
+            },
             scales: {
                 x: {
-                    grid: { color: '#222', drawBorder: false },
+                    grid: { display: false, drawBorder: false },
                     ticks: {
-                        color: '#666',
+                        color: '#FFFFFF',
                         maxRotation: 0,
                         autoSkip: false,
+                        padding: 10,
                         callback: function (val, index) {
                             const label = this.getLabelForValue(val);
-                            if (label.endsWith(':00')) return label;
+                            if (label.endsWith(':00')) return label.split(':')[0];
                             return '';
                         }
                     }
                 },
-                y: { grid: { color: '#222', drawBorder: false }, ticks: { color: '#666' } }
+                y: {
+                    grid: { color: 'rgba(255, 255, 255, 0.1)', drawBorder: false },
+                    ticks: { color: '#FFFFFF', padding: 10 }
+                }
             },
             plugins: {
-                legend: { display: false }, // 依照圖片顯示，隱藏圖例
+                legend: { display: false },
                 tooltip: { mode: 'index', intersect: false }
             }
         };
@@ -794,9 +838,10 @@
 
             switch (carouselIndex) {
                 case 0: // Temperature
-                    titleEl.innerText = 'TemperatureTrend (°C)';
+                    titleEl.innerText = '溫度 (°C)';
                     const tempStats = getWindowStats(data, 'temp', 15);
-                    createBadges(tempStats, '°C', 'carousel-badges', { min: '#C0392B', avg: '#E74C3C', max: '#7B241C' });
+                    const dewpts = data.map(d => d.dewpt);
+                    createBadges({ ...tempStats, dewpts }, '°C', 'carousel-badges', { min: '#C0392B', avg: '#E74C3C', max: '#7B241C', dewpt: '#1ABC9C' });
                     charts.carousel = new Chart(ctx, {
                         type: 'line',
                         data: {
@@ -812,7 +857,7 @@
                     });
                     break;
                 case 1: // Humidity
-                    titleEl.innerText = 'Humidity Trend (%)';
+                    titleEl.innerText = '濕度 (%)';
                     const humStats = getWindowStats(data, 'humidity', 15);
                     createBadges(humStats, '%', 'carousel-badges', { min: '#1F618D', avg: '#2980B9', max: '#1B4F72' });
                     charts.carousel = new Chart(ctx, {
@@ -829,7 +874,7 @@
                     });
                     break;
                 case 2: // Wind Speed
-                    titleEl.innerText = 'Wind Speed Trend (m/s)';
+                    titleEl.innerText = '風速 (m/s)';
                     const windStats = getWindowStats(data, 'wind_speed', 15);
                     const processedWind = {
                         mins: windStats.mins.map(v => v / 3.6),
@@ -853,7 +898,7 @@
                     });
                     break;
                 case 3: // Wind Direction
-                    titleEl.innerText = 'Wind Direction (°)';
+                    titleEl.innerText = '風向 (°)';
                     const windDirs = data.map(d => (d.wind_dir + 180) % 360);
                     const avgDir = windDirs.reduce((a, b) => a + (b || 0), 0) / windDirs.filter(v => v != null).length;
                     badgesEl.innerHTML = `<div class="badge"><span class="badge-type" style="background:#2E86C1">Avg</span> <span class="badge-val">${avgDir.toFixed(0)}° (${getWindDirection(avgDir)})</span></div>`;
@@ -886,7 +931,7 @@
                     });
                     break;
                 case 4: // Pressure
-                    titleEl.innerText = 'Pressure Trend (hPa)';
+                    titleEl.innerText = '大氣壓力 (hPa)';
                     const pressStats = getWindowStats(data, 'pressure', 15);
                     createBadges(pressStats, 'hPa', 'carousel-badges', { min: '#7D3C98', avg: '#AF7AC5', max: '#4A235A' });
                     charts.carousel = new Chart(ctx, {
@@ -903,7 +948,7 @@
                     });
                     break;
                 case 5: // Precipitation
-                    titleEl.innerText = 'Precipitation Trend (mm)';
+                    titleEl.innerText = '降雨量 (mm)';
                     const totalRain = data.length > 0 ? data[data.length - 1].precip_total : 0;
                     const maxRainDaily = Math.max(...data.map(d => d.precip_total));
                     let hourlyData = new Array(labels.length).fill(0);
@@ -936,7 +981,8 @@
 
             // 1. 溫度 - 三條線 (Min, Avg, Max)
             const tempStats = getWindowStats(data, 'temp', 15);
-            createBadges(tempStats, '°C', 'badges-temp', { min: '#C0392B', avg: '#E74C3C', max: '#7B241C' });
+            const dewpts = data.map(d => d.dewpt);
+            createBadges({ ...tempStats, dewpts }, '°C', 'badges-temp', { min: '#C0392B', avg: '#E74C3C', max: '#7B241C', dewpt: '#1ABC9C' });
 
             const ctxTemp = document.getElementById('chart-temp').getContext('2d');
             if (charts.temp) charts.temp.destroy();
