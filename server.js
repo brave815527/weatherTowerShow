@@ -32,22 +32,67 @@ app.get('/api/weather/latest', (req, res) => {
     }
 });
 
-// 獲取歷史資料 API Endpoint (預設抓過去 24 小時, 約 1440 筆紀錄)
+// 獲取歷史資料 API Endpoint (支援 ?date=YYYY-MM-DD，若無則抓取最近 1440 筆)
 app.get('/api/weather/history', async (req, res) => {
     try {
-        const { data: historyData, error } = await supabase
-            .from('weather_observations')
-            .select('created_at, temp, dewpt, humidity, wind_speed, wind_gust, wind_dir, pressure, precip_total, precip_rate')
-            .order('created_at', { ascending: false })
-            .limit(1440);
+        const { date } = req.query;
+        console.log(`[HTTP GET] /api/weather/history - date param: ${date || 'none'}`);
 
-        if (error) {
-            console.error('資料庫查詢錯誤:', error);
-            return res.status(500).json({ error: '無法讀取歷史資料' });
+        let allData = [];
+
+        if (date) {
+            // 建構台灣當地時間全天區間 (UTC+8)
+            const start = `${date} 00:00:00+08`;
+            const end = `${date} 23:59:59+08`;
+            console.log(`Searching for local day range: ${start} to ${end}`);
+
+            // 由於 Supabase 限制單次查詢筆數 (預設通常為 1000)
+            // 分兩次抓取以確保 24 小時資料 (1440 筆) 完整
+            const { data: part1, error: e1 } = await supabase
+                .from('weather_observations')
+                .select('created_at, temp, dewpt, humidity, wind_speed, wind_gust, wind_dir, pressure, precip_total, precip_rate')
+                .gte('created_at', start)
+                .lte('created_at', end)
+                .order('created_at', { ascending: true })
+                .range(0, 999);
+            if (e1) throw e1;
+            allData = allData.concat(part1);
+
+            if (part1.length === 1000) {
+                const { data: part2, error: e2 } = await supabase
+                    .from('weather_observations')
+                    .select('created_at, temp, dewpt, humidity, wind_speed, wind_gust, wind_dir, pressure, precip_total, precip_rate')
+                    .gte('created_at', start)
+                    .lte('created_at', end)
+                    .order('created_at', { ascending: true })
+                    .range(1000, 1999);
+                if (e2) throw e2;
+                allData = allData.concat(part2);
+            }
+        } else {
+            // 預設抓最近 1440 筆 (分兩次抓，因上限 1000)
+            const { data: part1, error: e1 } = await supabase
+                .from('weather_observations')
+                .select('created_at, temp, dewpt, humidity, wind_speed, wind_gust, wind_dir, pressure, precip_total, precip_rate')
+                .order('created_at', { ascending: false })
+                .range(0, 999);
+            if (e1) throw e1;
+            allData = allData.concat(part1);
+
+            const { data: part2, error: e2 } = await supabase
+                .from('weather_observations')
+                .select('created_at, temp, dewpt, humidity, wind_speed, wind_gust, wind_dir, pressure, precip_total, precip_rate')
+                .order('created_at', { ascending: false })
+                .range(1000, 1439);
+            if (e2) throw e2;
+            allData = allData.concat(part2);
+
+            // 反轉回正序
+            allData.reverse();
         }
 
-        // 將資料反轉，變成時間由舊到新的正序，方便前端畫圖
-        res.json(historyData.reverse());
+        console.log(`Query finished. Combined total: ${allData.length} records.`);
+        res.json(allData);
     } catch (error) {
         console.error('獲取歷史資料失敗:', error);
         res.status(500).json({ error: '伺服器內部錯誤' });
