@@ -79,13 +79,15 @@ app.get('/api/weather/history', async (req, res) => {
             if (e1) throw e1;
             allData = allData.concat(part1);
 
-            const { data: part2, error: e2 } = await supabase
-                .from('weather_observations')
-                .select('created_at, temp, dewpt, humidity, wind_speed, wind_gust, wind_dir, pressure, precip_total, precip_rate')
-                .order('created_at', { ascending: false })
-                .range(1000, 1439);
-            if (e2) throw e2;
-            allData = allData.concat(part2);
+            if (part1.length === 1000) {
+                const { data: part2, error: e2 } = await supabase
+                    .from('weather_observations')
+                    .select('created_at, temp, dewpt, humidity, wind_speed, wind_gust, wind_dir, pressure, precip_total, precip_rate')
+                    .order('created_at', { ascending: false })
+                    .range(1000, 1439);
+                if (e2) throw e2;
+                allData = allData.concat(part2);
+            }
 
             // 反轉回正序
             allData.reverse();

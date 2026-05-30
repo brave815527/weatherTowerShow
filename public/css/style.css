@@ -1,0 +1,485 @@
+:root {
+    /* 針對參考圖片高度還原深灰質感 */
+    --bg-color: #111111;
+    --card-bg: #1A1A1A;
+    --header-bg: #111111;
+    --text-main: #FFFFFF;
+    --text-sub: #A1A1AA;
+    --border-color: #2D2D2D;
+    --chart-red: #EF4444;
+    --chart-green: #22C55E;
+    --chart-blue: #3B82F6;
+    --chart-orange: #F97316;
+    --chart-cyan: #06B6D4;
+}
+
+* {
+    box-sizing: border-box;
+    font-family: 'Roboto', sans-serif;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-main);
+    margin: 0;
+    padding: 10px 20px;
+    min-height: 100vh;
+}
+
+#app-container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+}
+
+#main-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 10px;
+    background: var(--header-bg);
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+#update-time-text {
+    color: var(--text-sub);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+#toggle-view-btn {
+    background-color: #2C2C2E;
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+#toggle-view-btn:hover {
+    background-color: #3A3A3C;
+}
+
+/* 儀表板樣式 */
+.dashboard {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 15px;
+    width: 100%;
+}
+
+.card {
+    background-color: rgba(20, 24, 30, 0.85);
+    /* 稍微增加透明度並帶一點深藍 */
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 22px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    backdrop-filter: blur(8px);
+    /* 玻璃擬態效果 */
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    position: relative;
+    overflow: hidden;
+}
+
+.card-title {
+    font-size: 20px;
+    color: #00E5FF;
+    /* 採用鮮亮的青藍色作為標題 */
+    text-transform: uppercase;
+    font-weight: 800;
+    margin-bottom: 20px;
+    width: 100%;
+    border-bottom: 1px solid rgba(0, 229, 255, 0.2);
+    padding-bottom: 10px;
+    letter-spacing: 1px;
+}
+
+.widget-container {
+    width: 110px;
+    height: 110px;
+    margin-bottom: 15px;
+}
+
+.main-value {
+    font-size: 50px;
+    /* 大幅放大數值 */
+    font-weight: 800;
+    line-height: 1;
+    color: #FFFFFF;
+    /* 純白高對比 */
+    text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.unit {
+    font-size: 18px;
+    color: #FFFFFF;
+    margin-left: 4px;
+    vertical-align: baseline;
+    opacity: 0.9;
+}
+
+.sub-value {
+    font-size: 14px;
+    color: #BBB;
+    text-transform: uppercase;
+    margin-top: 12px;
+    letter-spacing: 1px;
+    font-weight: 500;
+}
+
+.sub-value-2 {
+    font-size: 14px;
+    color: #AAA;
+    margin-top: 6px;
+    font-weight: 500;
+}
+
+/* 時序圖新樣式 - 模仿 Weathercloud */
+#history-view {
+    display: none;
+    flex-direction: column;
+    gap: 20px;
+    width: 100%;
+    padding-bottom: 40px;
+}
+
+.chart-section {
+    background-color: rgba(22, 22, 24, 0.85);
+    /* 與卡片同步透明度 */
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 22px;
+    width: 100%;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.chart-title-main {
+    font-size: 20px;
+    /* 放大標題對齊卡片 */
+    color: #00E5FF;
+    /* 採用青藍色 */
+    margin: 0;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+/* LIVE 指示燈呼吸動畫 */
+@keyframes pulse-red {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.4);
+    }
+
+    70% {
+        opacity: 0.6;
+        transform: scale(1.1);
+        box-shadow: 0 0 0 10px rgba(231, 76, 60, 0);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(231, 76, 60, 0);
+    }
+}
+
+#carousel-indicator {
+    animation: pulse-red 2s infinite;
+}
+
+.chart-badges {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.badge {
+    background-color: rgba(45, 45, 45, 0.8);
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 14px;
+    /* 放大標籤字體 */
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.badge-type {
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 11px;
+    text-transform: uppercase;
+}
+
+.badge-val {
+    color: white;
+    font-weight: 500;
+}
+
+.badge-drought {
+    background-color: #D68910 !important;
+    color: white !important;
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.history-card {
+    height: 300px;
+    width: 100%;
+}
+
+@media (max-width: 992px) {
+    .dashboard {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 576px) {
+    .dashboard {
+        grid-template-columns: 1fr;
+    }
+
+    .chart-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+}
+
+/* --- 進階儀表 (Premium Dashboard) 樣式 --- */
+#premium-dashboard {
+    margin-top: 20px;
+}
+
+.premium-card {
+    background-color: rgba(18, 20, 24, 0.85);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    position: relative;
+    overflow: hidden;
+}
+
+.premium-card::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, var(--glow-color, rgba(255,255,255,0.03)) 0%, transparent 70%);
+    opacity: 0.25;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.premium-card:hover {
+    transform: translateY(-5px);
+    border-color: var(--hover-border, rgba(255, 255, 255, 0.2));
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.8), 0 0 15px var(--hover-shadow, rgba(255, 255, 255, 0.05));
+}
+
+.premium-card:hover::before {
+    opacity: 0.45;
+}
+
+/* Color Variables for each card type */
+.premium-card.temp-card {
+    --glow-color: rgba(255, 77, 77, 0.12);
+    --hover-border: rgba(255, 77, 77, 0.3);
+    --hover-shadow: rgba(255, 77, 77, 0.1);
+}
+.premium-card.precip-card {
+    --glow-color: rgba(56, 189, 248, 0.12);
+    --hover-border: rgba(56, 189, 248, 0.3);
+    --hover-shadow: rgba(56, 189, 248, 0.1);
+}
+.premium-card.wind-card {
+    --glow-color: rgba(244, 114, 182, 0.12);
+    --hover-border: rgba(244, 114, 182, 0.3);
+    --hover-shadow: rgba(244, 114, 182, 0.1);
+}
+.premium-card.sun-card {
+    --glow-color: rgba(250, 204, 21, 0.12);
+    --hover-border: rgba(250, 204, 21, 0.3);
+    --hover-shadow: rgba(250, 204, 21, 0.1);
+}
+.premium-card.pressure-card {
+    --glow-color: rgba(167, 139, 250, 0.12);
+    --hover-border: rgba(167, 139, 250, 0.3);
+    --hover-shadow: rgba(167, 139, 250, 0.1);
+}
+.premium-card.hum-card {
+    --glow-color: rgba(74, 222, 128, 0.12);
+    --hover-border: rgba(74, 222, 128, 0.3);
+    --hover-shadow: rgba(74, 222, 128, 0.1);
+}
+
+.premium-gauge-container {
+    width: 100%;
+    aspect-ratio: 1.8 / 1.3;
+    position: relative;
+}
+
+.premium-value-container {
+    position: absolute;
+    bottom: 5%;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    width: 100%;
+}
+
+.premium-unit {
+    font-size: 11px;
+    color: var(--text-sub);
+    margin-bottom: 2px;
+    font-weight: 500;
+}
+
+.premium-icon-box {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 2px;
+}
+
+.premium-icon {
+    width: 18px;
+    height: 18px;
+    opacity: 0.9;
+}
+
+.premium-main-val {
+    font-size: 32px;
+    font-weight: 800;
+    color: #FFFFFF;
+    line-height: 1;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+.premium-label {
+    font-size: 14px;
+    color: #FFF;
+    opacity: 0.85;
+    margin-top: 5px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-weight: 700;
+}
+
+.premium-sub-info {
+    font-size: 11px;
+    color: var(--text-sub);
+    margin-top: 2px;
+    font-weight: 400;
+}
+
+#toggle-premium-btn {
+    background-color: #2C2C2E;
+    color: #FFD700; /* 金色亮點 */
+    border: 1px solid #444;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+
+#toggle-premium-btn:hover {
+    background-color: #3A3A3C;
+    border-color: #666;
+}
+
+/* --- 骨架屏 Skeleton Screen 樣式 --- */
+@keyframes skeleton-pulse {
+    0% {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+    50% {
+        background-color: rgba(255, 255, 255, 0.15);
+    }
+    100% {
+        background-color: rgba(255, 255, 255, 0.05);
+    }
+}
+
+.skeleton {
+    animation: skeleton-pulse 1.5s infinite ease-in-out;
+    border-radius: 4px;
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.skeleton-title {
+    width: 60%;
+    height: 20px;
+    margin-bottom: 25px;
+}
+
+.skeleton-gauge {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    margin-bottom: 20px;
+}
+
+.skeleton-value {
+    width: 45%;
+    height: 38px;
+    margin-bottom: 12px;
+}
+
+.skeleton-sub {
+    width: 55%;
+    height: 14px;
+}
+
+.skeleton-sub2 {
+    width: 40%;
+    height: 12px;
+    margin-top: 6px;
+}
