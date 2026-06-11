@@ -65,9 +65,13 @@ function createBadges(stats, unit, containerId, colors) {
     const container = document.getElementById(containerId);
     if (!container) return;
     
-    const avg = stats.avgs.reduce((a, b) => a + (b || 0), 0) / stats.avgs.filter(v => v != null).length;
-    const min = Math.min(...stats.mins.filter(v => v != null));
-    const max = Math.max(...stats.maxs.filter(v => v != null));
+    const validAvgs = stats.avgs.filter(v => v != null && !isNaN(v));
+    const validMins = stats.mins.filter(v => v != null && !isNaN(v));
+    const validMaxs = stats.maxs.filter(v => v != null && !isNaN(v));
+
+    const avg = validAvgs.length > 0 ? (validAvgs.reduce((a, b) => a + b, 0) / validAvgs.length) : 0;
+    const min = validMins.length > 0 ? Math.min(...validMins) : 0;
+    const max = validMaxs.length > 0 ? Math.max(...validMaxs) : 0;
 
     let html = `
         <div class="badge"><span class="badge-type" style="background:${colors.min}">Min</span> <span class="badge-val">${min.toFixed(1)} ${unit}</span></div>
@@ -77,14 +81,16 @@ function createBadges(stats, unit, containerId, colors) {
 
     // 特殊處理：如果有 Gust
     if (stats.gusts && colors.gust) {
-        const maxGust = Math.max(...stats.gusts.filter(v => v != null));
+        const validGusts = stats.gusts.filter(v => v != null && !isNaN(v));
+        const maxGust = validGusts.length > 0 ? Math.max(...validGusts) : 0;
         const badgeHtml = `<div class="badge"><span class="badge-type" style="background:${colors.gust}">Gust</span> <span class="badge-val">${maxGust.toFixed(1)} ${unit}</span></div>`;
         html += badgeHtml;
     }
 
     // 特殊處理：如果有 Dewpoint
     if (stats.dewpts && colors.dewpt) {
-        const avgDew = stats.dewpts.reduce((a, b) => a + (b || 0), 0) / stats.dewpts.filter(v => v != null).length;
+        const validDewpts = stats.dewpts.filter(v => v != null && !isNaN(v));
+        const avgDew = validDewpts.length > 0 ? (validDewpts.reduce((a, b) => a + b, 0) / validDewpts.length) : 0;
         const badgeHtml = `<div class="badge"><span class="badge-type" style="background:${colors.dewpt}">Dewpt</span> <span class="badge-val">${avgDew.toFixed(1)} ${unit}</span></div>`;
         html += badgeHtml;
     }
@@ -138,10 +144,10 @@ function renderSingleCarousel() {
             titleEl.innerText = '風速 (m/s)';
             const windStats = getWindowStats(data, 'wind_speed', 15);
             const processedWind = {
-                mins: windStats.mins.map(v => v / 3.6),
-                maxs: windStats.maxs.map(v => v / 3.6),
-                avgs: windStats.avgs.map(v => v / 3.6),
-                gusts: data.map(d => d.wind_gust / 3.6)
+                mins: windStats.mins.map(v => v != null ? v / 3.6 : null),
+                maxs: windStats.maxs.map(v => v != null ? v / 3.6 : null),
+                avgs: windStats.avgs.map(v => v != null ? v / 3.6 : null),
+                gusts: data.map(d => d.wind_gust != null ? d.wind_gust / 3.6 : null)
             };
             createBadges(processedWind, 'm/s', 'carousel-badges', { min: '#117864', avg: '#1ABC9C', max: '#0E6251', gust: '#D35400' });
             datasets = [
@@ -153,8 +159,9 @@ function renderSingleCarousel() {
             break;
         case 3: // Wind Direction
             titleEl.innerText = '風向 (°)';
-            const windDirs = data.map(d => (d.wind_dir + 180) % 360);
-            const avgDir = windDirs.reduce((a, b) => a + (b || 0), 0) / windDirs.filter(v => v != null).length;
+            const windDirs = data.map(d => d.wind_dir != null ? (d.wind_dir + 180) % 360 : null);
+            const validWindDirs = windDirs.filter(v => v != null && !isNaN(v));
+            const avgDir = validWindDirs.length > 0 ? (validWindDirs.reduce((a, b) => a + b, 0) / validWindDirs.length) : 0;
             badgesEl.innerHTML = `<div class="badge"><span class="badge-type" style="background:#2E86C1">Avg</span> <span class="badge-val">${avgDir.toFixed(0)}° (${getWindDirection(avgDir)})</span></div>`;
             datasets = [{
                 label: 'Direction',
@@ -190,11 +197,12 @@ function renderSingleCarousel() {
             break;
         case 5: // Precipitation
             titleEl.innerText = '降雨量 (mm)';
-            const totalRain = data.length > 0 ? data[data.length - 1].precip_total : 0;
-            const maxRainDaily = Math.max(...data.map(d => d.precip_total));
+            const totalRain = data.length > 0 ? (data[data.length - 1].precip_total || 0) : 0;
+            const precipTotals = data.map(d => d.precip_total).filter(v => v != null && !isNaN(v));
+            const maxRainDaily = precipTotals.length > 0 ? Math.max(...precipTotals) : 0;
             let hourlyData = new Array(labels.length).fill(0);
             for (let i = 1; i < data.length; i++) {
-                const diff = Math.max(0, data[i].precip_total - data[i - 1].precip_total);
+                const diff = Math.max(0, (data[i].precip_total || 0) - (data[i - 1].precip_total || 0));
                 if (diff > 0) hourlyData[i] = diff;
             }
             badgesEl.innerHTML = `
@@ -292,10 +300,10 @@ function renderCharts(data) {
     // 3. 風速
     const windStats = getWindowStats(data, 'wind_speed', 15);
     const processedWindSpeeds = {
-        mins: windStats.mins.map(v => v / 3.6),
-        maxs: windStats.maxs.map(v => v / 3.6),
-        avgs: windStats.avgs.map(v => v / 3.6),
-        gusts: data.map(d => d.wind_gust / 3.6)
+        mins: windStats.mins.map(v => v != null ? v / 3.6 : null),
+        maxs: windStats.maxs.map(v => v != null ? v / 3.6 : null),
+        avgs: windStats.avgs.map(v => v != null ? v / 3.6 : null),
+        gusts: data.map(d => d.wind_gust != null ? d.wind_gust / 3.6 : null)
     };
     createBadges(processedWindSpeeds, 'm/s', 'badges-windspeed', { min: '#117864', avg: '#1ABC9C', max: '#0E6251', gust: '#D35400' });
 
@@ -323,8 +331,9 @@ function renderCharts(data) {
     });
 
     // 4. 風向 - 散佈圖 + 側邊 Y 軸
-    const windDirs = data.map(d => (d.wind_dir + 180) % 360);
-    const avgDir = windDirs.reduce((a, b) => a + (b || 0), 0) / windDirs.filter(v => v != null).length;
+    const windDirs = data.map(d => d.wind_dir != null ? (d.wind_dir + 180) % 360 : null);
+    const validWindDirs = windDirs.filter(v => v != null && !isNaN(v));
+    const avgDir = validWindDirs.length > 0 ? (validWindDirs.reduce((a, b) => a + b, 0) / validWindDirs.length) : 0;
     document.getElementById('badges-winddir').innerHTML = `<div class="badge"><span class="badge-type" style="background:#2E86C1">Avg</span> <span class="badge-val">${avgDir.toFixed(0)}° (${getWindDirection(avgDir)})</span></div>`;
 
     const ctxWindDir = document.getElementById('chart-wind-dir').getContext('2d');
@@ -389,12 +398,13 @@ function renderCharts(data) {
     });
 
     // 6. 降雨
-    const totalRain = data.length > 0 ? data[data.length - 1].precip_total : 0;
-    const maxRainDaily = Math.max(...data.map(d => d.precip_total));
+    const totalRain = data.length > 0 ? (data[data.length - 1].precip_total || 0) : 0;
+    const precipTotals = data.map(d => d.precip_total).filter(v => v != null && !isNaN(v));
+    const maxRainDaily = precipTotals.length > 0 ? Math.max(...precipTotals) : 0;
 
     let hourlyData = new Array(labels.length).fill(0);
     for (let i = 1; i < data.length; i++) {
-        const diff = Math.max(0, data[i].precip_total - data[i - 1].precip_total);
+        const diff = Math.max(0, (data[i].precip_total || 0) - (data[i - 1].precip_total || 0));
         if (diff > 0) hourlyData[i] = diff;
     }
 

@@ -12,6 +12,37 @@ let carouselIndex = 0;
 let carouselIntervalId = null;
 let lastHistoryData = [];
 
+// Toast Notification Helper (Non-blocking replacement for native alerts)
+function showNotification(message, isSuccess = false) {
+    let notifyEl = document.getElementById('app-notification');
+    if (!notifyEl) {
+        notifyEl = document.createElement('div');
+        notifyEl.id = 'app-notification';
+        notifyEl.style.position = 'fixed';
+        notifyEl.style.bottom = '20px';
+        notifyEl.style.right = '20px';
+        notifyEl.style.background = isSuccess ? 'rgba(16, 185, 129, 0.9)' : 'rgba(239, 68, 68, 0.9)';
+        notifyEl.style.color = 'white';
+        notifyEl.style.padding = '12px 24px';
+        notifyEl.style.borderRadius = '8px';
+        notifyEl.style.zIndex = '1000';
+        notifyEl.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
+        notifyEl.style.fontWeight = 'bold';
+        notifyEl.style.transition = 'all 0.3s ease';
+        document.body.appendChild(notifyEl);
+    } else {
+        notifyEl.style.background = isSuccess ? 'rgba(16, 185, 129, 0.9)' : 'rgba(239, 68, 68, 0.9)';
+    }
+    notifyEl.innerText = message;
+    notifyEl.style.opacity = '1';
+    notifyEl.style.transform = 'translateY(0)';
+    
+    setTimeout(() => {
+        notifyEl.style.opacity = '0';
+        notifyEl.style.transform = 'translateY(20px)';
+    }, 4000);
+}
+
 // Initialize date picker to today
 const datePicker = document.getElementById('history-date-picker');
 if (datePicker) {
@@ -241,7 +272,7 @@ async function fetchHistoryData(dateStr) {
         if (data && data.length > 0) {
             renderCharts(data);
         } else {
-            alert(`選取的日期 (${dateStr}) 沒有觀測紀錄。`);
+            showNotification(`選取的日期 (${dateStr || '今天'}) 沒有觀測紀錄。`);
         }
     } catch (error) {
         console.error('取得時序圖資料失敗:', error);
