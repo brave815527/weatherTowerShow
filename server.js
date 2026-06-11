@@ -239,6 +239,12 @@ app.get('/api/weather/history', async (req, res) => {
                     // 反轉回正序
                     allData.reverse();
                 }
+
+                // 若 Supabase 查詢成功但該日期沒有觀測紀錄，亦啟用降級機制以展示本地備用/模擬數據
+                if (allData.length === 0) {
+                    console.log('Supabase 無該日期歷史觀測紀錄，切換至本機備份/模擬資料庫...');
+                    useFallback = true;
+                }
             } catch (dbError) {
                 console.error('Supabase 歷史資料查詢失敗，啟用本機 JSON 降級機制:', dbError.message || dbError);
                 markSupabaseOffline(dbError);
