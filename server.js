@@ -82,15 +82,29 @@ function getLocalHistory(dateStr) {
     }
 }
 
-// 生成模擬歷史氣象資料 (當資料庫與本機皆無資料時的極致體驗降級方案)
+// 生成模擬歷史氣象資料 (當資料庫與本機皆無資料時的極致體驗降級方案，支援台灣時區 UTC+8)
 function generateMockHistory(dateStr) {
     const data = [];
-    const baseDate = dateStr ? new Date(dateStr) : new Date();
-    baseDate.setHours(0, 0, 0, 0);
+    let baseDate;
+    if (dateStr) {
+        baseDate = new Date(`${dateStr}T00:00:00+08:00`);
+    } else {
+        // 取得台灣時間的今天 00:00:00
+        const tzOffset = 8 * 60; // Taiwan is UTC+8
+        const now = new Date();
+        const localTime = now.getTime() + tzOffset * 60000;
+        const localDate = new Date(localTime);
+        const yyyy = localDate.getUTCFullYear();
+        const mm = String(localDate.getUTCMonth() + 1).padStart(2, '0');
+        const dd = String(localDate.getUTCDate()).padStart(2, '0');
+        baseDate = new Date(`${yyyy}-${mm}-${dd}T00:00:00+08:00`);
+    }
+    
     const limit = 144; // 10分鐘一筆，共144筆，足夠畫出流暢的時序圖
     for (let i = 0; i < limit; i++) {
         const time = new Date(baseDate.getTime() + i * 10 * 60 * 1000);
-        const hour = time.getHours();
+        // 以台灣當地時間 (UTC+8) 計算小時數以進行日夜特徵模擬
+        const hour = (time.getUTCHours() + 8) % 24;
         
         // 溫度：白天高(14點最高)，晚上低
         const temp = 22 + 6 * Math.sin((hour - 8) / 24 * 2 * Math.PI) + Math.random() * 0.6;
