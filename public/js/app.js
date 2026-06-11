@@ -51,6 +51,10 @@ if (datePicker) {
     const mm = String(today.getMonth() + 1).padStart(2, '0');
     const dd = String(today.getDate()).padStart(2, '0');
     datePicker.value = `${yyyy}-${mm}-${dd}`;
+    
+    // Bind change and input events to ensure instant update across all browsers
+    datePicker.addEventListener('change', onDateChange);
+    datePicker.addEventListener('input', onDateChange);
 }
 
 function onDateChange() {
@@ -270,6 +274,19 @@ async function fetchHistoryData(dateStr) {
         const data = await response.json();
         
         if (data && data.length > 0) {
+            // Update the display date label dynamically
+            const dateDisplay = document.getElementById('history-display-date');
+            if (dateDisplay) {
+                if (dateStr) {
+                    dateDisplay.innerText = dateStr;
+                } else {
+                    const today = new Date();
+                    const yyyy = today.getFullYear();
+                    const mm = String(today.getMonth() + 1).padStart(2, '0');
+                    const dd = String(today.getDate()).padStart(2, '0');
+                    dateDisplay.innerText = `${yyyy}-${mm}-${dd}`;
+                }
+            }
             renderCharts(data);
         } else {
             showNotification(`選取的日期 (${dateStr || '今天'}) 沒有觀測紀錄。`);
