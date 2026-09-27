@@ -159,7 +159,7 @@ function renderSingleCarousel() {
             break;
         case 3: // Wind Direction
             titleEl.innerText = '風向 (°)';
-            const windDirs = data.map(d => d.wind_dir != null ? (d.wind_dir + 180) % 360 : null);
+            const windDirs = data.map(d => d.wind_dir != null ? d.wind_dir : null);
             const validWindDirs = windDirs.filter(v => v != null && !isNaN(v));
             const avgDir = validWindDirs.length > 0 ? (validWindDirs.reduce((a, b) => a + b, 0) / validWindDirs.length) : 0;
             badgesEl.innerHTML = `<div class="badge"><span class="badge-type" style="background:#2E86C1">Avg</span> <span class="badge-val">${avgDir.toFixed(0)}° (${getWindDirection(avgDir)})</span></div>`;
@@ -331,7 +331,7 @@ function renderCharts(data) {
     });
 
     // 4. 風向 - 散佈圖 + 側邊 Y 軸
-    const windDirs = data.map(d => d.wind_dir != null ? (d.wind_dir + 180) % 360 : null);
+    const windDirs = data.map(d => d.wind_dir != null ? d.wind_dir : null);
     const validWindDirs = windDirs.filter(v => v != null && !isNaN(v));
     const avgDir = validWindDirs.length > 0 ? (validWindDirs.reduce((a, b) => a + b, 0) / validWindDirs.length) : 0;
     document.getElementById('badges-winddir').innerHTML = `<div class="badge"><span class="badge-type" style="background:#2E86C1">Avg</span> <span class="badge-val">${avgDir.toFixed(0)}° (${getWindDirection(avgDir)})</span></div>`;

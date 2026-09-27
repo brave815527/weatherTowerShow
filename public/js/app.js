@@ -72,7 +72,7 @@ async function fetchWeatherData() {
         const metric = obs.metric;
 
         // Process wind direction & speed
-        const reversedWindDir = (obs.winddir + 180) % 360;
+        const windDir = obs.winddir;
         const windSpeedMsNum = metric.windSpeed / 3.6;
         const windGustMsNum = metric.windGust / 3.6;
 
@@ -122,7 +122,7 @@ async function fetchWeatherData() {
                                 <svg class="premium-icon" viewBox="0 0 24 24" fill="none" stroke="#F472B6" stroke-width="2.5"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg>
                                 <div class="premium-main-val">${(windSpeedMsNum * 3.6).toFixed(1)}</div>
                             </div>
-                            <div class="premium-label">Wind from the ${getWindDirection(reversedWindDir)}</div>
+                            <div class="premium-label">Wind from the ${getWindDirection(windDir)}</div>
                             <div class="premium-sub-info" style="color:#F472B6">▼ Gust peak</div>
                         </div>
                     </div>
@@ -214,12 +214,12 @@ async function fetchWeatherData() {
                 <div class="card">
                     <div class="card-title">風向風速</div>
                     <div class="widget-container">
-                        ${buildSVGWind(reversedWindDir)}
+                        ${buildSVGWind(windDir)}
                     </div>
                     <div class="value-box">
                         <span class="main-value">${windSpeedMsNum.toFixed(1)}</span><span class="unit">m/s</span>
                         <div class="sub-value">GUST ${windGustMsNum.toFixed(1)} m/s</div>
-                        <div class="sub-value-2">${reversedWindDir}° ${getWindDirection(reversedWindDir)}</div>
+                        <div class="sub-value-2">${windDir}° ${getWindDirection(windDir)}</div>
                         <div class="sub-value-2" style="margin-top: 8px;">WIND</div>
                     </div>
                 </div>
