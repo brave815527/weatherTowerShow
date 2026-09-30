@@ -1,3 +1,6 @@
 node_modules/
 .env
-schema.sql
+data/
+public/vendor/
+*.log
+*.tmp

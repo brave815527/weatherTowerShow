@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>Weather Tower · 直播畫面工作台</title>
+    <link rel="stylesheet" href="/css/style.css?v=2.0.0" />
+    <link rel="stylesheet" href="/css/control.css?v=2.0.0" />
+    <script defer src="/js/model.js?v=2.0.0"></script>
+    <script defer src="/js/control.js?v=2.0.0"></script>
+  </head>
+  <body class="control-body">
+    <div class="control-wrap">
+      <header class="control-header">
+        <div>
+          <div class="eyebrow">
+            <span class="brand-mark"></span> WEATHER TOWER
+          </div>
+          <h1>直播畫面工作台</h1>
+          <p>選擇版型，預覽畫面，再將專屬網址加入直播場景。</p>
+        </div>
+        <span id="system-pill" class="system-pill">讀取服務狀態</span>
+      </header>
+      <div class="workspace-grid">
+        <aside class="settings-panel">
+          <form id="settings-form">
+            <div class="panel-heading">
+              <span class="step-tag">01</span>
+              <h2>畫面設定</h2>
+            </div>
+            <fieldset>
+              <legend>播出版型</legend>
+              <div class="layout-options">
+                <label
+                  ><input
+                    type="radio"
+                    name="layout"
+                    value="full"
+                    checked
+                  /><span
+                    ><strong>全畫面</strong><small>1920 × 1080</small></span
+                  ></label
+                ><label
+                  ><input type="radio" name="layout" value="sidebar" /><span
+                    ><strong>側邊資訊板</strong><small>480 × 1080</small></span
+                  ></label
+                ><label
+                  ><input type="radio" name="layout" value="ticker" /><span
+                    ><strong>底部橫條</strong><small>1920 × 180</small></span
+                  ></label
+                >
+              </div>
+            </fieldset>
+            <label class="form-label" for="source-mode">資料模式</label
+            ><select id="source-mode" name="demo">
+              <option value="false">實際觀測</option>
+              <option value="true">示範資料（非實測）</option>
+            </select>
+            <label class="form-label" for="station-select">觀測測站</label
+            ><select id="station-select" name="station">
+              <option value="">預設測站</option>
+            </select>
+            <div class="form-row">
+              <div>
+                <label class="form-label" for="theme-select">背景</label
+                ><select id="theme-select" name="theme">
+                  <option value="dark">深色實底</option>
+                  <option value="transparent">透明疊圖</option>
+                </select>
+              </div>
+              <div>
+                <label class="form-label" for="unit-select">風速單位</label
+                ><select id="unit-select" name="windUnit">
+                  <option value="ms">m/s</option>
+                  <option value="kmh">km/h</option>
+                </select>
+              </div>
+            </div>
+            <div id="chart-controls">
+              <label class="form-label" for="chart-select">趨勢圖</label
+              ><select id="chart-select" name="chart">
+                <option value="temp">氣溫與露點</option>
+                <option value="humidity">相對濕度</option>
+                <option value="wind">風速與陣風</option>
+                <option value="direction">風向</option>
+                <option value="pressure">海平面氣壓</option>
+                <option value="rain">十分鐘雨量</option>
+                <option value="cycle">自動輪播</option>
+              </select>
+              <div class="form-row">
+                <div>
+                  <label class="form-label" for="hours-select">時間範圍</label
+                  ><select id="hours-select" name="hours">
+                    <option value="6">最近6小時</option>
+                    <option value="12" selected>最近12小時</option>
+                    <option value="24">最近24小時</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label" for="cycle-select">輪播間隔</label
+                  ><select id="cycle-select" name="cycle">
+                    <option value="15">15秒</option>
+                    <option value="20" selected>20秒</option>
+                    <option value="30">30秒</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <label class="form-label" for="history-date">歷史回放日期</label
+            ><input id="history-date" name="date" type="date" />
+            <p class="field-help">
+              留空顯示最新觀測。指定日期時，播出畫面會標明歷史回放。
+            </p>
+            <button type="button" id="reset-date" class="text-button">
+              返回即時觀測
+            </button>
+          </form>
+          <section class="capture-guide">
+            <div class="panel-heading">
+              <span class="step-tag">02</span>
+              <h2>加入直播場景</h2>
+            </div>
+            <p>
+              新增「瀏覽器來源」，貼上右方網址。寬高依版型設定，幀率可先使用30
+              FPS。
+            </p>
+            <p>
+              全畫面也支援1280 ×
+              720等比縮放。透明模式請搭配實際攝影機畫面確認對比。
+            </p>
+          </section>
+        </aside>
+        <main class="preview-column">
+          <section class="preview-panel">
+            <div class="preview-toolbar">
+              <div>
+                <span class="preview-dot"></span><strong>播出預覽</strong
+                ><span id="preview-size">1920 × 1080</span>
+              </div>
+              <a
+                id="open-overlay"
+                href="/overlay"
+                target="_blank"
+                rel="noopener"
+                >開啟播出頁 ↗</a
+              >
+            </div>
+            <div id="preview-box" class="preview-box">
+              <iframe
+                id="preview-frame"
+                title="直播畫面預覽"
+                src="about:blank"
+                loading="eager"
+              ></iframe>
+            </div>
+            <div class="url-row">
+              <label class="sr-only" for="overlay-url">播出網址</label
+              ><input id="overlay-url" readonly /><button
+                type="button"
+                id="copy-url"
+                class="primary-button"
+              >
+                複製網址
+              </button>
+            </div>
+            <div
+              id="copy-status"
+              class="copy-status"
+              role="status"
+              aria-live="polite"
+            >
+              此網址包含目前選擇的版型與資料模式。
+            </div>
+          </section>
+          <section class="health-panel">
+            <div class="panel-heading">
+              <span class="step-tag">03</span>
+              <h2>資料與服務狀態</h2>
+              <span id="service-version" class="version-label"></span>
+            </div>
+            <div id="health-grid" class="health-grid"></div>
+            <p id="health-notice" class="health-notice">讀取狀態中</p>
+          </section>
+        </main>
+      </div>
+      <footer class="control-footer">
+        Weather Tower · 所有播出時間使用台灣時間 UTC+8
+        <span>示範模式不會寫入觀測紀錄。</span>
+      </footer>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>Weather Tower · 直播氣象資訊</title>
+    <link rel="stylesheet" href="/css/style.css?v=2.0.0" />
+    <script defer src="/vendor/chart.umd.js?v=2.0.0"></script>
+    <script defer src="/js/model.js?v=2.0.0"></script>
+    <script defer src="/js/gauges.js?v=2.0.0"></script>
+    <script defer src="/js/charts.js?v=2.0.0"></script>
+    <script defer src="/js/app.js?v=2.0.0"></script>
+  </head>
+  <body class="overlay-body">
+    <main id="stage" class="stage layout-full" aria-label="氣象觀測直播資訊">
+      <header class="station-header">
+        <div class="station-brand">
+          <div class="eyebrow">
+            <span class="brand-mark"></span> WEATHER TOWER
+            <span class="brand-divider">/</span> 氣象觀測
+          </div>
+          <h1 id="station-name">氣象觀測站</h1>
+        </div>
+        <div class="station-state">
+          <div id="status-pill" class="status-pill" data-state="empty">
+            <span class="status-dot"></span
+            ><span id="status-label">等待觀測資料</span>
+          </div>
+          <div id="observation-time" class="observation-time">
+            觀測時間 — · UTC+8
+          </div>
+          <div id="observation-age" class="observation-age">正在讀取資料</div>
+        </div>
+      </header>
+      <section
+        id="metrics"
+        class="metrics-grid"
+        aria-label="最新觀測"
+      ></section>
+      <section id="trend-panel" class="trend-panel" aria-label="觀測趨勢">
+        <div class="trend-heading">
+          <div>
+            <div class="eyebrow trend-eyebrow" id="trend-range">
+              最近 12 小時 · UTC+8
+            </div>
+            <h2 id="trend-title">
+              氣溫趨勢 <span class="trend-unit">°C</span>
+            </h2>
+          </div>
+          <div id="trend-stats" class="trend-stats"></div>
+        </div>
+        <div class="chart-shell">
+          <canvas id="trend-chart" aria-label="觀測時間序列"></canvas>
+          <div id="chart-message" class="chart-message">正在讀取歷史觀測</div>
+        </div>
+        <div class="trend-bottom">
+          <div id="trend-legend" class="trend-legend"></div>
+          <div id="trend-note">實際觀測 · 缺測區段留空</div>
+        </div>
+      </section>
+      <footer class="station-footer">
+        <span id="source-label">觀測來源 —</span
+        ><span id="station-code">UTC+8 / Asia–Taipei</span>
+      </footer>
+    </main>
+  </body>
+</html>
