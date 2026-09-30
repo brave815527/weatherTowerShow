@@ -1,390 +1,367 @@
-/**
- * Keith's Jian Weather Tower - Core Application Controller
- * Manages fetching real-time and historical database records, scheduling updates, and toggling UI states.
- */
-
-const API_URL = '/api/weather/latest';
-
-let isHistoryView = false;
-let isPremiumView = false;
-let charts = {};
-let carouselIndex = 0;
-let carouselIntervalId = null;
-let lastHistoryData = [];
-
-// Toast Notification Helper (Non-blocking replacement for native alerts)
-function showNotification(message, isSuccess = false) {
-    let notifyEl = document.getElementById('app-notification');
-    if (!notifyEl) {
-        notifyEl = document.createElement('div');
-        notifyEl.id = 'app-notification';
-        notifyEl.style.position = 'fixed';
-        notifyEl.style.bottom = '20px';
-        notifyEl.style.right = '20px';
-        notifyEl.style.background = isSuccess ? 'rgba(16, 185, 129, 0.9)' : 'rgba(239, 68, 68, 0.9)';
-        notifyEl.style.color = 'white';
-        notifyEl.style.padding = '12px 24px';
-        notifyEl.style.borderRadius = '8px';
-        notifyEl.style.zIndex = '1000';
-        notifyEl.style.boxShadow = '0 4px 12px rgba(0,0,0,0.5)';
-        notifyEl.style.fontWeight = 'bold';
-        notifyEl.style.transition = 'all 0.3s ease';
-        document.body.appendChild(notifyEl);
-    } else {
-        notifyEl.style.background = isSuccess ? 'rgba(16, 185, 129, 0.9)' : 'rgba(239, 68, 68, 0.9)';
-    }
-    notifyEl.innerText = message;
-    notifyEl.style.opacity = '1';
-    notifyEl.style.transform = 'translateY(0)';
-    
-    setTimeout(() => {
-        notifyEl.style.opacity = '0';
-        notifyEl.style.transform = 'translateY(20px)';
-    }, 4000);
-}
-
-// Initialize date picker to today
-const datePicker = document.getElementById('history-date-picker');
-if (datePicker) {
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    datePicker.value = `${yyyy}-${mm}-${dd}`;
-    
-    // Bind change and input events to ensure instant update across all browsers
-    datePicker.addEventListener('change', onDateChange);
-    datePicker.addEventListener('input', onDateChange);
-}
-
-function onDateChange() {
-    if (datePicker) {
-        fetchHistoryData(datePicker.value);
-    }
-}
-
-// Fetch current real-time metrics
-async function fetchWeatherData() {
+"use strict";
+(function () {
+  const M = WeatherModel,
+    params = new URLSearchParams(location.search);
+  const layouts = {
+    full: [1920, 1080],
+    sidebar: [480, 1080],
+    ticker: [1920, 180],
+  };
+  const layout = Object.hasOwn(layouts, params.get("layout"))
+    ? params.get("layout")
+    : "full";
+  const windUnit = params.get("windUnit") === "kmh" ? "kmh" : "ms",
+    demo = params.get("demo") === "true";
+  const theme =
+    params.get("theme") === "transparent" || params.get("obs") === "true"
+      ? "transparent"
+      : "dark";
+  const allowedCharts = [
+      "temp",
+      "humidity",
+      "wind",
+      "direction",
+      "pressure",
+      "rain",
+    ],
+    selectedChart = allowedCharts.includes(params.get("chart"))
+      ? params.get("chart")
+      : "temp";
+  const cycling = params.get("chart") === "cycle" && layout === "full",
+    cycleSeconds = [15, 20, 30].includes(Number(params.get("cycle")))
+      ? Number(params.get("cycle"))
+      : 20;
+  const hours = [6, 12, 24].includes(Number(params.get("hours")))
+    ? Number(params.get("hours"))
+    : 12;
+  const replayDate = params.get("date") || "",
+    station = params.get("station") || "";
+  const stage = document.getElementById("stage");
+  stage.className = `stage layout-${layout}`;
+  document.body.classList.add(`theme-${theme}`);
+  document.documentElement.classList.add(`theme-${theme}`);
+  stage.style.width = `${layouts[layout][0]}px`;
+  stage.style.height = `${layouts[layout][1]}px`;
+  function resize() {
+    stage.style.setProperty(
+      "--stage-scale",
+      Math.min(
+        innerWidth / layouts[layout][0],
+        innerHeight / layouts[layout][1],
+      ),
+    );
+  }
+  addEventListener("resize", resize);
+  resize();
+  const definitions = [
+    ["temp", "氣溫", "°C", "#fb7185", -10, 45],
+    ["humidity", "相對濕度", "%", "#60a5fa", 0, 100],
+    [
+      "wind_speed",
+      "風速／風向",
+      windUnit === "kmh" ? "km/h" : "m/s",
+      "#4ade80",
+      0,
+      15,
+    ],
+    ["precip_total", "今日累積雨量", "mm", "#22d3ee", 0, 100],
+    ["pressure", "海平面氣壓", "hPa", "#c4b5fd", 960, 1040],
+    ["dewpt", "露點溫度", "°C", "#7dd3fc", -10, 35],
+  ];
+  const nodes = new Map();
+  for (const [key, title, unit, color, min, max] of definitions) {
+    const card = document.createElement("article");
+    card.className = "metric-card";
+    card.dataset.metric = key;
+    card.style.setProperty("--metric-color", color);
+    card.innerHTML = `<div class="metric-top"><h2 class="metric-label"></h2><svg class="metric-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${WeatherIcons[key]}</svg></div><div class="metric-value-row"><span class="metric-value">—</span><span class="metric-unit"></span></div><div class="metric-sub">等待觀測</div><div class="metric-track" aria-hidden="true"><span></span></div>`;
+    card.querySelector(".metric-label").textContent = title;
+    card.querySelector(".metric-unit").textContent = unit;
+    document.getElementById("metrics").append(card);
+    nodes.set(key, {
+      card,
+      value: card.querySelector(".metric-value"),
+      sub: card.querySelector(".metric-sub"),
+      min,
+      max,
+    });
+  }
+  const chart =
+    layout === "full"
+      ? new WeatherChart(document.getElementById("trend-chart"))
+      : null;
+  let observation = null,
+    reachable = true,
+    history = null,
+    chartKey = selectedChart,
+    polling = 60000,
+    closed = false,
+    requestController = null,
+    chartBusy = false,
+    latestBusy = false;
+  const controllers = new Set();
+  function apiQuery(extra = {}) {
+    const query = new URLSearchParams({ demo: String(demo), ...extra });
+    if (station) query.set("station", station);
+    return query;
+  }
+  async function getJson(url, signal) {
+    const controller = new AbortController();
+    controllers.add(controller);
+    const timer = setTimeout(() => controller.abort(), 20000);
+    if (signal)
+      signal.addEventListener("abort", () => controller.abort(), {
+        once: true,
+      });
     try {
-        const response = await fetch(API_URL);
-        const data = await response.json();
-        const obs = data.observations[0];
-        const metric = obs.metric;
-
-        // Process wind direction & speed
-        const windDir = obs.winddir;
-        const windSpeedMsNum = metric.windSpeed / 3.6;
-        const windGustMsNum = metric.windGust / 3.6;
-
-        const dashboard = document.getElementById('dashboard');
-        const premiumDashboard = document.getElementById('premium-dashboard');
-
-        // 1. Populate Premium Dashboard
-        if (premiumDashboard) {
-            premiumDashboard.innerHTML = `
-                <!-- 1. Temperature -->
-                <div class="premium-card temp-card">
-                    <div class="premium-gauge-container">
-                        ${buildPremiumArcGauge(metric.temp, -10, 30, '#FF4D4D', 'needle')}
-                        <div class="premium-value-container">
-                            <span class="premium-unit">°C</span>
-                            <div class="premium-icon-box">
-                                <svg class="premium-icon" viewBox="0 0 24 24" fill="none" stroke="#FF4D4D" stroke-width="2.5"><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0z"/></svg>
-                                <div class="premium-main-val">${metric.temp}</div>
-                            </div>
-                            <div class="premium-label">Temperature</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 2. Precipitation -->
-                <div class="premium-card precip-card">
-                    <div class="premium-gauge-container">
-                        ${buildPremiumArcGauge(metric.precipTotal, 0, 10, '#38BDF8', 'arc')}
-                        <div class="premium-value-container">
-                            <span class="premium-unit">mm/10min</span>
-                            <div class="premium-icon-box">
-                                <svg class="premium-icon" viewBox="0 0 24 24" fill="none" stroke="#38BDF8" stroke-width="2.5"><path d="M20 16.2A4.5 4.5 0 0 1 17.5 24a4.5 4.5 0 0 1-2.5-7.8V12h5v4.2z"/><path d="M12 2v20"/><path d="M5 16.2A4.5 4.5 0 1 0 7.5 24a4.5 4.5 0 0 0 2.5-7.8V12H5v4.2z"/></svg>
-                                <div class="premium-main-val">${metric.precipTotal.toFixed(1)}</div>
-                            </div>
-                            <div class="premium-label">Precipitation</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 3. Wind -->
-                <div class="premium-card wind-card">
-                    <div class="premium-gauge-container">
-                        ${buildPremiumArcGauge((windSpeedMsNum * 3.6).toFixed(1), 0, 140, '#F472B6', 'needle')}
-                        <div class="premium-value-container">
-                            <span class="premium-unit">km/h</span>
-                            <div class="premium-icon-box">
-                                <svg class="premium-icon" viewBox="0 0 24 24" fill="none" stroke="#F472B6" stroke-width="2.5"><path d="M17.7 7.7a2.5 2.5 0 1 1 1.8 4.3H2"/><path d="M9.6 4.6A2 2 0 1 1 11 8H2"/><path d="M12.6 19.4A2 2 0 1 0 14 16H2"/></svg>
-                                <div class="premium-main-val">${(windSpeedMsNum * 3.6).toFixed(1)}</div>
-                            </div>
-                            <div class="premium-label">Wind from the ${getWindDirection(windDir)}</div>
-                            <div class="premium-sub-info" style="color:#F472B6">▼ Gust peak</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 4. Sunshine -->
-                <div class="premium-card sun-card">
-                    <div class="premium-gauge-container">
-                        ${buildPremiumArcGauge(10, 0, 10, '#FACC15', 'arc')}
-                        <div class="premium-value-container">
-                            <span class="premium-unit">min/10min</span>
-                            <div class="premium-icon-box">
-                                <svg class="premium-icon" viewBox="0 0 24 24" fill="none" stroke="#FACC15" stroke-width="2.5"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-                                <div class="premium-main-val">10</div>
-                            </div>
-                            <div class="premium-label">Sunshine</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 5. Pressure -->
-                <div class="premium-card pressure-card">
-                    <div class="premium-gauge-container">
-                        ${buildPremiumArcGauge(metric.pressure, 950, 1050, '#A78BFA', 'needle')}
-                        <div class="premium-value-container">
-                            <span class="premium-unit">hPa</span>
-                            <div class="premium-icon-box">
-                                <svg class="premium-icon" viewBox="0 0 24 24" fill="none" stroke="#A78BFA" stroke-width="2.5"><path d="M12 2v20M2 12h20M5.45 5.45l13.1 13.1M5.45 18.55l13.1-13.1"/></svg>
-                                <div class="premium-main-val">${metric.pressure.toFixed(1)}</div>
-                            </div>
-                            <div class="premium-label">Pressure</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 6. Humidity -->
-                <div class="premium-card hum-card">
-                    <div class="premium-gauge-container">
-                        ${buildPremiumArcGauge(obs.humidity, 0, 100, '#4ADE80', 'needle')}
-                        <div class="premium-value-container">
-                            <span class="premium-unit">%</span>
-                            <div class="premium-icon-box">
-                                <svg class="premium-icon" viewBox="0 0 24 24" fill="none" stroke="#4ADE80" stroke-width="2.5"><path d="M12 22.6c5.8 0 10.6-4.8 10.6-10.6S17.8 1.4 12 1.4 1.4 6.2 1.4 12s4.8 10.6 10.6 10.6zM6.6 12l3.6 3.6 7.2-7.2"/></svg>
-                                <div class="premium-main-val">${obs.humidity}</div>
-                            </div>
-                            <div class="premium-label">Humidity</div>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-        // 2. Populate Standard Dashboard (overwriting skeletons)
-        if (dashboard) {
-            dashboard.innerHTML = `
-                <div class="card">
-                    <div class="card-title">目前溫度</div>
-                    <div class="widget-container">
-                        ${buildSVGTempGauge(metric.temp)}
-                    </div>
-                    <div class="value-box">
-                        <span class="main-value">${metric.temp}</span><span class="unit">°C</span>
-                        <div class="sub-value">TEMPERATURE</div>
-                    </div>
-                </div>
-                
-                <div class="card">
-                    <div class="card-title">露點溫度</div>
-                    <div class="widget-container">
-                        ${buildSVGDewPoint()}
-                    </div>
-                    <div class="value-box">
-                        <span class="main-value">${metric.dewpt}</span><span class="unit">°C</span>
-                        <div class="sub-value">DEW POINT</div>
-                    </div>
-                </div>
-                
-                <div class="card">
-                    <div class="card-title">相對濕度</div>
-                    <div class="widget-container">
-                        ${buildSVGHumidity(obs.humidity)}
-                    </div>
-                    <div class="value-box">
-                        <span class="main-value">${obs.humidity}</span><span class="unit">%</span>
-                        <div class="sub-value">HUMIDITY</div>
-                    </div>
-                </div>
-                
-                <div class="card">
-                    <div class="card-title">風向風速</div>
-                    <div class="widget-container">
-                        ${buildSVGWind(windDir)}
-                    </div>
-                    <div class="value-box">
-                        <span class="main-value">${windSpeedMsNum.toFixed(1)}</span><span class="unit">m/s</span>
-                        <div class="sub-value">GUST ${windGustMsNum.toFixed(1)} m/s</div>
-                        <div class="sub-value-2">${windDir}° ${getWindDirection(windDir)}</div>
-                        <div class="sub-value-2" style="margin-top: 8px;">WIND</div>
-                    </div>
-                </div>
-                
-                <div class="card">
-                    <div class="card-title">日降雨量</div>
-                    <div class="widget-container">
-                        ${buildSVGPrecip(metric.precipTotal)}
-                    </div>
-                    <div class="value-box">
-                        <span class="main-value">${metric.precipTotal.toFixed(1)}</span><span class="unit">mm</span>
-                        <div class="sub-value">${metric.precipRate.toFixed(1)} MM/HR</div>
-                        <div class="sub-value-2">PRECIPITATION</div>
-                    </div>
-                </div>
-                
-                <div class="card">
-                    <div class="card-title">大氣壓力</div>
-                    <div class="widget-container">
-                        ${buildSVGPressure(metric.pressure)}
-                    </div>
-                    <div class="value-box">
-                        <span class="main-value">${Math.round(metric.pressure)}</span><span class="unit">hPa</span>
-                        <div class="sub-value">PRESSURE</div>
-                    </div>
-                </div>
-            `;
-        }
-
-        const updateTimeText = document.getElementById('update-time-text');
-        if (updateTimeText) {
-            updateTimeText.innerText = `資料時間: ${new Date().toLocaleTimeString()}`;
-        }
-
-    } catch (error) {
-        console.error('獲取天氣數據失敗:', error);
-        const dashboard = document.getElementById('dashboard');
-        if (dashboard) {
-            dashboard.innerHTML = '<div style="color:white;text-align:center;width:100%;grid-column: 1/-1;">無法載入資料，請確認後端伺服器已啟動。</div>';
-        }
+      const response = await fetch(url, {
+        signal: controller.signal,
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error("REQUEST_FAILED");
+      const body = await response.json();
+      if (body.version !== 2) throw new Error("INVALID_RESPONSE");
+      return body;
+    } finally {
+      clearTimeout(timer);
+      controllers.delete(controller);
     }
-}
-
-// Fetch historical database records
-async function fetchHistoryData(dateStr) {
+  }
+  function renderValues() {
+    for (const [key] of definitions) {
+      const node = nodes.get(key),
+        value = M.number(observation?.[key]);
+      const shown =
+        value === null
+          ? null
+          : key === "wind_speed" && windUnit === "kmh"
+            ? value * 3.6
+            : value;
+      node.value.textContent = M.format(shown, key === "humidity" ? 0 : 1);
+      node.card.dataset.missing = String(value === null);
+      node.card.style.setProperty(
+        "--metric-progress",
+        `${value === null ? 0 : Math.max(0, Math.min(100, ((value - node.min) * 100) / (node.max - node.min)))}%`,
+      );
+      if (value === null) {
+        node.sub.textContent = "此項觀測未提供";
+        if (key === "wind_speed")
+          node.card.querySelector(".wind-needle").style.opacity = "0";
+        continue;
+      }
+      if (key === "temp") node.sub.textContent = demo ? "示範氣溫" : "實際氣溫";
+      if (key === "humidity") node.sub.textContent = "空氣相對濕度";
+      if (key === "dewpt") node.sub.textContent = "空氣飽和時的溫度";
+      if (key === "pressure") node.sub.textContent = "海平面校正";
+      if (key === "precip_total")
+        node.sub.textContent = `雨強 ${M.format(observation?.precip_rate)} mm/h`;
+      if (key === "wind_speed") {
+        const gust = M.number(observation?.wind_gust);
+        const bearing = M.number(observation?.wind_dir, 0, 360);
+        const needle = node.card.querySelector(".wind-needle");
+        needle.setAttribute("transform", `rotate(${bearing ?? 0} 12 12)`);
+        needle.style.opacity = bearing === null || value < 0.3 ? "0" : "1";
+        const dir = value < 0.3 ? "靜風" : M.direction(observation?.wind_dir);
+        node.sub.textContent = `${dir} · 陣風 ${M.format(gust === null ? null : gust * (windUnit === "kmh" ? 3.6 : 1))}${layout === "ticker" ? "" : ` ${windUnit === "kmh" ? "km/h" : "m/s"}`}`;
+      }
+    }
+    document.getElementById("observation-time").textContent = observation
+      ? `觀測 ${M.timeLabel(observation.observed_at, true)} · UTC+8`
+      : "觀測時間 — · UTC+8";
+    document.getElementById("source-label").textContent = demo
+      ? "示範資料 · 非實測 · 不代表現場天氣"
+      : replayDate
+        ? `歷史回放 ${replayDate} · 缺測不推估`
+        : observation
+          ? "資料來源 Weather Company / PWS"
+          : "尚無有效觀測 · 請在工作台確認資料來源";
+    document.getElementById("station-code").textContent =
+      `${demo ? "DEMO" : observation?.station_id || station || "—"} / UTC+8`;
+    updateStatus();
+  }
+  function updateStatus() {
+    const state = M.freshness(observation, Date.now(), reachable);
+    const pill = document.getElementById("status-pill");
+    pill.dataset.state = demo ? "demo" : replayDate ? "replay" : state.state;
+    document.getElementById("status-label").textContent = demo
+      ? "示範資料 · 非實測"
+      : replayDate
+        ? `歷史回放 · ${replayDate}`
+        : state.label;
+    document.getElementById("observation-age").textContent = demo
+      ? "僅供播出版面預覽"
+      : replayDate
+        ? "顯示該日最後一筆有效觀測"
+        : state.age_seconds === null
+          ? "等待有效資料，不以模擬值替代"
+          : `${Math.floor(state.age_seconds / 60)} 分鐘前${reachable ? "" : " · 保留最後有效觀測"}`;
+    document.body.dataset.dataState = pill.dataset.state;
+  }
+  function renderChart() {
+    if (closed || !chart || !history) return;
+    const message = document.getElementById("chart-message");
+    document.getElementById("trend-range").textContent =
+      `${history.range.label}${demo ? " · 示範" : ""}${replayDate ? " · 歷史回放" : ""}`;
     try {
-        const t = Date.now();
-        const url = dateStr ? `/api/weather/history?date=${dateStr}&t=${t}` : `/api/weather/history?t=${t}`;
-        console.log(`[Frontend] Fetching history from: ${url}`);
-        
-        const response = await fetch(url);
-        const data = await response.json();
-        
-        if (data && data.length > 0) {
-            // Update the display date label dynamically
-            const dateDisplay = document.getElementById('history-display-date');
-            if (dateDisplay) {
-                if (dateStr) {
-                    dateDisplay.innerText = dateStr;
-                } else {
-                    const today = new Date();
-                    const yyyy = today.getFullYear();
-                    const mm = String(today.getMonth() + 1).padStart(2, '0');
-                    const dd = String(today.getDate()).padStart(2, '0');
-                    dateDisplay.innerText = `${yyyy}-${mm}-${dd}`;
-                }
-            }
-            renderCharts(data);
-        } else {
-            showNotification(`選取的日期 (${dateStr || '今天'}) 沒有觀測紀錄。`);
-        }
-    } catch (error) {
-        console.error('取得時序圖資料失敗:', error);
+      const output = chart.render(history, chartKey, windUnit);
+      const heading = document.getElementById("trend-title");
+      heading.replaceChildren(document.createTextNode(output.title));
+      const unit = document.createElement("span");
+      unit.className = "trend-unit";
+      unit.textContent = output.unit;
+      heading.append(unit);
+      const stats = document.getElementById("trend-stats");
+      stats.replaceChildren();
+      for (const [label, value] of output.labels) {
+        const node = document.createElement("div");
+        node.className = "trend-stat";
+        const name = document.createElement("span"),
+          number = document.createElement("strong");
+        name.textContent = label;
+        number.textContent = value;
+        node.append(name, number);
+        stats.append(node);
+      }
+      const legend = document.getElementById("trend-legend");
+      legend.replaceChildren();
+      for (const [label, color] of output.legend) {
+        const item = document.createElement("span");
+        item.className = "legend-item";
+        const swatch = document.createElement("span");
+        swatch.className = "legend-swatch";
+        swatch.style.setProperty("--legend-color", color);
+        item.append(swatch, document.createTextNode(label));
+        legend.append(item);
+      }
+      document.getElementById("trend-note").textContent = history.degraded
+        ? "本機備援 · 缺測區段留空"
+        : output.note;
+      message.hidden = output.hasData;
+      message.textContent = "此時段沒有有效觀測紀錄";
+    } catch {
+      message.hidden = false;
+      message.textContent = "趨勢圖暫時無法顯示";
     }
-}
-
-// Toggle Standard vs Time-series History View
-function toggleView() {
-    const dashboard = document.getElementById('dashboard');
-    const premiumDashboard = document.getElementById('premium-dashboard');
-    const carousel = document.getElementById('dashboard-carousel');
-    const historyView = document.getElementById('history-view');
-    const toggleBtn = document.getElementById('toggle-view-btn');
-    const togglePremiumBtn = document.getElementById('toggle-premium-btn');
-
-    isHistoryView = !isHistoryView;
-    isPremiumView = false; // Reset premium view
-
-    if (isHistoryView) {
-        if (dashboard) dashboard.style.display = 'none';
-        if (premiumDashboard) premiumDashboard.style.display = 'none';
-        if (carousel) carousel.style.display = 'none';
-        if (historyView) historyView.style.display = 'flex';
-        if (datePicker) datePicker.style.display = 'block';
-        if (toggleBtn) toggleBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg> 返回儀表板';
-        if (datePicker) fetchHistoryData(datePicker.value);
-    } else {
-        if (dashboard) dashboard.style.display = 'grid';
-        if (premiumDashboard) premiumDashboard.style.display = 'none';
-        if (carousel) carousel.style.display = 'block';
-        if (historyView) historyView.style.display = 'none';
-        if (datePicker) datePicker.style.display = 'none';
-        if (toggleBtn) toggleBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg> 切換時序圖';
-        fetchHistoryData();
+  }
+  async function refreshHistory() {
+    if (closed || (!chart && !replayDate) || chartBusy) return;
+    chartBusy = true;
+    try {
+      const payload = await getJson(
+        `/api/weather/history?${apiQuery(replayDate ? { date: replayDate } : { hours: String(hours) })}`,
+      );
+      if (closed) return;
+      if (!Array.isArray(payload.observations) || !payload.range)
+        throw new Error("INVALID_HISTORY");
+      history = payload;
+      if (replayDate && payload.station_name)
+        document.getElementById("station-name").textContent =
+          payload.station_name;
+      if (replayDate) {
+        observation =
+          payload.observations
+            .map((row) => M.normalize(row))
+            .filter(Boolean)
+            .at(-1) || null;
+        reachable = true;
+        renderValues();
+      }
+      renderChart();
+    } catch {
+      if (closed) return;
+      if (replayDate) {
+        observation = null;
+        renderValues();
+      }
+      if (chart) {
+        document.getElementById("chart-message").hidden = false;
+        document.getElementById("chart-message").textContent =
+          "歷史資料暫時無法取得";
+        document.getElementById("trend-note").textContent = "資料未更新";
+      }
+    } finally {
+      chartBusy = false;
     }
-}
-
-// Toggle Standard vs Premium Gauge Dashboard
-function togglePremiumView() {
-    const dashboard = document.getElementById('dashboard');
-    const premiumDashboard = document.getElementById('premium-dashboard');
-    const carousel = document.getElementById('dashboard-carousel');
-    const historyView = document.getElementById('history-view');
-    const toggleBtn = document.getElementById('toggle-view-btn');
-    const togglePremiumBtn = document.getElementById('toggle-premium-btn');
-
-    isPremiumView = !isPremiumView;
-    isHistoryView = false; // Reset history view
-
-    if (isPremiumView) {
-        if (dashboard) dashboard.style.display = 'none';
-        if (premiumDashboard) premiumDashboard.style.display = 'grid';
-        if (carousel) carousel.style.display = 'none';
-        if (historyView) historyView.style.display = 'none';
-        if (datePicker) datePicker.style.display = 'none';
-        if (toggleBtn) toggleBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg> 切換時序圖';
-        if (togglePremiumBtn) togglePremiumBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg> 返回普通儀表';
-    } else {
-        if (dashboard) dashboard.style.display = 'grid';
-        if (premiumDashboard) premiumDashboard.style.display = 'none';
-        if (carousel) carousel.style.display = 'block';
-        if (historyView) historyView.style.display = 'none';
-        if (datePicker) datePicker.style.display = 'none';
-        if (togglePremiumBtn) togglePremiumBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg> 高級儀表';
+  }
+  async function refreshLatest() {
+    if (closed || replayDate || latestBusy) return;
+    latestBusy = true;
+    requestController = new AbortController();
+    try {
+      const payload = await getJson(
+        `/api/weather/latest?${apiQuery()}`,
+        requestController.signal,
+      );
+      if (closed) return;
+      if (payload.observation !== null && !M.normalize(payload.observation))
+        throw new Error("INVALID_OBSERVATION");
+      if (payload.observation) observation = M.normalize(payload.observation);
+      reachable = Boolean(payload.observation);
+      polling = Math.max(
+        30000,
+        Math.min(3600000, (payload.poll_seconds || 60) * 1000),
+      );
+      document.getElementById("station-name").textContent =
+        payload.station_name || "氣象觀測站";
+      renderValues();
+    } catch {
+      if (closed) return;
+      reachable = false;
+      renderValues();
+    } finally {
+      latestBusy = false;
     }
-}
-
-function init() {
-    // OBS mode custom handling via query param
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('obs') === 'true') {
-        const header = document.getElementById('main-header');
-        const carousel = document.getElementById('dashboard-carousel');
-        if (header) header.style.display = 'none';
-        if (carousel) {
-            carousel.style.borderTop = 'none';
-            carousel.style.marginTop = '15px';
-        }
-        document.body.style.background = 'transparent';
-        const appContainer = document.getElementById('app-container');
-        if (appContainer) appContainer.style.padding = '0';
+  }
+  let latestTimer, historyTimer, cycleTimer;
+  async function latestLoop() {
+    await refreshLatest();
+    if (!closed && !replayDate) latestTimer = setTimeout(latestLoop, polling);
+  }
+  async function historyLoop() {
+    await refreshHistory();
+    if (!closed) historyTimer = setTimeout(historyLoop, 300000);
+  }
+  renderValues();
+  latestLoop();
+  historyLoop();
+  if (replayDate)
+    document.getElementById("station-name").textContent = demo
+      ? "吉安氣象觀測站 · 示範"
+      : "氣象觀測歷史回放";
+  const ageTimer = setInterval(updateStatus, 10000);
+  function scheduleCycle() {
+    clearInterval(cycleTimer);
+    if (!closed && cycling && !document.hidden)
+      cycleTimer = setInterval(() => {
+        chartKey =
+          allowedCharts[
+            (allowedCharts.indexOf(chartKey) + 1) % allowedCharts.length
+          ];
+        renderChart();
+      }, cycleSeconds * 1000);
+  }
+  scheduleCycle();
+  document.addEventListener("visibilitychange", () => {
+    scheduleCycle();
+    if (!document.hidden) {
+      if (!replayDate) refreshLatest();
+      refreshHistory();
     }
-
-    // Fetch initial datasets
-    fetchWeatherData();
-    fetchHistoryData();
-
-    // Set intervals
-    setInterval(fetchWeatherData, 60000); // Update gauges every 1 minute
-    setInterval(() => {
-        // Periodically refresh history datasets every 10 minutes to stay fresh
-        const currentPickerVal = datePicker ? datePicker.value : null;
-        fetchHistoryData(isHistoryView ? currentPickerVal : null);
-    }, 600000);
-}
-
-// Start application
-init();
+  });
+  addEventListener("pagehide", () => {
+    closed = true;
+    clearTimeout(latestTimer);
+    clearTimeout(historyTimer);
+    clearInterval(cycleTimer);
+    clearInterval(ageTimer);
+    for (const controller of controllers) controller.abort();
+    chart?.clear();
+  });
+  addEventListener("pageshow", (event) => {
+    if (event.persisted && closed) location.reload();
+  });
+  if (document.fonts?.ready)
+    document.fonts.ready.then(() => {
+      if (!closed) renderChart();
+    });
+})();

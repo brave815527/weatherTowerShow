@@ -1,0 +1,28 @@
+# Review the paid service/disk before deploying; this file creates no cloud resources.
+services:
+  - type: web
+    name: weather-tower
+    runtime: node
+    plan: starter
+    buildCommand: npm ci && npm run build && npm test
+    startCommand: npm start
+    healthCheckPath: /api/health
+    disk:
+      name: weather-data
+      mountPath: /var/data/weather
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: APP_MODE
+        value: live
+      - key: HOST
+        value: 0.0.0.0
+      - key: DATA_DIR
+        value: /var/data/weather
+      - key: WEATHER_API_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
