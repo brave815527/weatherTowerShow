@@ -8,6 +8,7 @@ class CloudRepository {
       state: "disabled",
       migration_required: false,
       last_success: null,
+      legacy_history_unavailable: false,
     };
     this.retryAfter = 0;
     if (
@@ -146,7 +147,16 @@ class CloudRepository {
         );
       if (legacy) return normalized;
       // Read old real observations without modifying or exposing their raw payload.
-      const older = await this.legacyHistory(station, start, end, signal);
+      // Legacy history is optional: an old-table timeout must not discard
+      // current v2 records or stop new observations from being uploaded.
+      let older = [];
+      try {
+        older = await this.legacyHistory(station, start, end, signal);
+        this.health.legacy_history_unavailable = false;
+      } catch {
+        this.health.legacy_history_unavailable = true;
+        // Preserve the verified v2 result; missing intervals remain empty.
+      }
       const merged = new Map();
       for (const record of older) merged.set(record.observed_at, record);
       for (const record of normalized) merged.set(record.observed_at, record);
