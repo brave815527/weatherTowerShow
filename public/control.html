@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="color-scheme" content="dark" />
     <title>Weather Tower · 直播畫面工作台</title>
-    <link rel="stylesheet" href="/css/style.css?v=2.0.0" />
-    <link rel="stylesheet" href="/css/control.css?v=2.0.0" />
-    <script defer src="/js/model.js?v=2.0.0"></script>
-    <script defer src="/js/control.js?v=2.0.0"></script>
+    <link rel="stylesheet" href="/css/style.css?v=2.1.0" />
+    <link rel="stylesheet" href="/css/control.css?v=2.1.0" />
+    <script defer src="/js/model.js?v=2.1.0"></script>
+    <script defer src="/js/control.js?v=2.1.0"></script>
   </head>
   <body class="control-body">
     <div class="control-wrap">
@@ -32,6 +32,12 @@
             <fieldset>
               <legend>播出版型</legend>
               <div class="layout-options">
+                <label
+                  ><input type="radio" name="layout" value="wall" /><span
+                    ><strong>攝影機牆面資訊板</strong
+                    ><small>600 × 640 · 大字與趨勢圖</small></span
+                  ></label
+                >
                 <label
                   ><input
                     type="radio"
@@ -128,6 +134,11 @@
             <p>
               全畫面也支援1280 ×
               720等比縮放。透明模式請搭配實際攝影機畫面確認對比。
+            </p>
+            <p id="wall-guide" class="field-help" hidden>
+              牆面版：瀏覽器來源設為 600 × 640，縮放 100%。1920 × 1080
+              場景建議位置 X=16、Y=420，覆蓋左側鐵皮牆；依屋簷微調。720p
+              場景可縮至 400 × 427，位置約 X=11、Y=280。
             </p>
           </section>
         </aside>

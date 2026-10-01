@@ -5,6 +5,7 @@
     preview = document.getElementById("preview-frame"),
     box = document.getElementById("preview-box");
   const sizes = {
+    wall: [600, 640],
     full: [1920, 1080],
     sidebar: [480, 1080],
     ticker: [1920, 180],
@@ -26,6 +27,10 @@
     stored = JSON.parse(localStorage.getItem("weather-tower-settings") || "{}");
   } catch {
     /* Private mode can disable local storage. */
+  }
+  if ((incoming.get("layout") ?? stored.layout) === "wall") {
+    form.elements.namedItem("hours").value = "6";
+    form.elements.namedItem("cycle").value = "30";
   }
   for (const name of fields) {
     if (name === "station") continue;
@@ -74,8 +79,11 @@
     if (healthLoaded && preview.src !== url) preview.src = url;
     document.getElementById("preview-size").textContent =
       sizes[settings.layout].join(" × ");
-    document.getElementById("chart-controls").hidden =
-      settings.layout !== "full";
+    document.getElementById("chart-controls").hidden = ![
+      "full",
+      "wall",
+    ].includes(settings.layout);
+    document.getElementById("wall-guide").hidden = settings.layout !== "wall";
     document.getElementById("station-select").disabled =
       settings.demo === "true";
     try {
@@ -86,7 +94,12 @@
     history.replaceState(null, "", `/control?${query}`);
     resizePreview();
   }
-  form.addEventListener("change", () => {
+  form.addEventListener("change", (event) => {
+    if (event.target.name === "layout" && event.target.value === "wall") {
+      form.elements.namedItem("hours").value = "6";
+      form.elements.namedItem("cycle").value = "30";
+      form.elements.namedItem("chart").value = "cycle";
+    }
     clearTimeout(debounce);
     debounce = setTimeout(apply, 150);
   });

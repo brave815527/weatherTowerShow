@@ -1,4 +1,4 @@
-# Weather Tower 2.0 — 直播氣象資訊
+# Weather Tower 2.1 — 直播氣象資訊
 
 固定 OBS 畫布、獨立工作台、可驗證時間與來源的觀測、本機交易保存與雲端待補傳。繁體中文介面，圖表、字型與圖示由本機提供。
 
@@ -32,6 +32,7 @@ npm start
 
 | 版型 | 寬×高 | 內容 |
 | --- | --- | --- |
+| wall | 600×640 | 攝影機牆面用兩欄大數值與大刻度趨勢圖；預設最近6小時 |
 | full | 1920×1080 或 1280×720 | 六項觀測、單張趨勢、來源與狀態；等比縮放 |
 | sidebar | 480×1080 | 六項觀測直式排列 |
 | ticker | 1920×180 | 測站、狀態與六項觀測 |
@@ -40,7 +41,10 @@ npm start
 http://127.0.0.1:3005/overlay?layout=full&theme=dark&chart=temp&hours=12&windUnit=ms
 http://127.0.0.1:3005/overlay?layout=sidebar&theme=transparent&windUnit=kmh
 http://127.0.0.1:3005/overlay?layout=ticker&demo=true
+http://127.0.0.1:3005/overlay?layout=wall&theme=dark&chart=cycle&hours=6&cycle=30&windUnit=ms
 ```
+
+牆面版在 OBS 直接設定瀏覽器來源 600×640、縮放100%。1920×1080 攝影機場景的起始位置為 X=16、Y=420，可依屋簷微調；720p 場景縮至400×427、位置約11、280。此版使用接近實底的深色資訊板，保留天空、街道與右下品牌。選擇牆面版會套用6小時與30秒輪播，可再自行調整圖表。
 
 chart 支援 temp/humidity/wind/direction/pressure/rain/cycle，cycle 為 15/20/30 秒；hours 為 6/12/24。date=YYYY-MM-DD 為臺北日期回放並永久標示日期；station 可指定站號。原 `/?obs=true` 轉至透明播出頁。
 

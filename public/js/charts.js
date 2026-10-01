@@ -1,7 +1,8 @@
 "use strict";
 window.WeatherChart = class {
-  constructor(canvas) {
+  constructor(canvas, { compact = false } = {}) {
     this.canvas = canvas;
+    this.compact = compact;
     this.chart = null;
   }
   clear() {
@@ -51,7 +52,7 @@ window.WeatherChart = class {
         data: mainPoints,
         borderColor: color,
         backgroundColor: key === "rain" ? "#22d3eeaa" : color,
-        borderWidth: 3,
+        borderWidth: this.compact ? 4 : 3,
         tension: 0,
         pointRadius: key === "direction" ? 3 : 0,
         showLine: key !== "direction",
@@ -63,7 +64,7 @@ window.WeatherChart = class {
         label: "露點",
         data: M.pointsWithGaps(rows, "dewpt", interval),
         borderColor: "#7dd3fc",
-        borderWidth: 2,
+        borderWidth: this.compact ? 3 : 2,
         borderDash: [6, 5],
         pointRadius: 0,
         tension: 0,
@@ -99,15 +100,25 @@ window.WeatherChart = class {
           max: end,
           grid: { display: false },
           border: { display: false },
+          ...(this.compact
+            ? {
+                afterBuildTicks: (axis) => {
+                  axis.ticks = Array.from({ length: 4 }, (_, index) => ({
+                    value: start + ((end - start) * index) / 3,
+                  }));
+                },
+              }
+            : {}),
           ticks: {
-            color: "#859ab7",
-            font: { family: "Noto Sans TC", size: 19 },
+            color: this.compact ? "#d3dfef" : "#859ab7",
+            font: { family: "Noto Sans TC", size: this.compact ? 22 : 19 },
             maxRotation: 0,
-            maxTicksLimit: 7,
+            maxTicksLimit: this.compact ? 4 : 7,
+            autoSkip: !this.compact,
             callback: (value) =>
               M.timeLabel(
                 Number(value),
-                M.dateKey(start) !== M.dateKey(end - 1),
+                !this.compact && M.dateKey(start) !== M.dateKey(end - 1),
               ),
           },
         },
@@ -122,9 +133,9 @@ window.WeatherChart = class {
           grid: { color: "#26334a" },
           border: { display: false },
           ticks: {
-            color: "#859ab7",
-            font: { family: "Noto Sans TC", size: 19 },
-            maxTicksLimit: 5,
+            color: this.compact ? "#d3dfef" : "#859ab7",
+            font: { family: "Noto Sans TC", size: this.compact ? 22 : 19 },
+            maxTicksLimit: this.compact ? 4 : 5,
             precision: key === "direction" ? 0 : 1,
             callback: (value) => (key === "direction" ? `${value}°` : value),
           },

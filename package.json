@@ -1,6 +1,6 @@
 {
   "name": "weathertower",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Broadcast weather overlays with verified observations and durable local storage",
   "main": "server.js",
   "scripts": {

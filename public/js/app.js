@@ -3,6 +3,7 @@
   const M = WeatherModel,
     params = new URLSearchParams(location.search);
   const layouts = {
+    wall: [600, 640],
     full: [1920, 1080],
     sidebar: [480, 1080],
     ticker: [1920, 180],
@@ -27,13 +28,18 @@
     selectedChart = allowedCharts.includes(params.get("chart"))
       ? params.get("chart")
       : "temp";
-  const cycling = params.get("chart") === "cycle" && layout === "full",
+  const cycling =
+      params.get("chart") === "cycle" && ["full", "wall"].includes(layout),
     cycleSeconds = [15, 20, 30].includes(Number(params.get("cycle")))
       ? Number(params.get("cycle"))
-      : 20;
+      : layout === "wall"
+        ? 30
+        : 20;
   const hours = [6, 12, 24].includes(Number(params.get("hours")))
     ? Number(params.get("hours"))
-    : 12;
+    : layout === "wall"
+      ? 6
+      : 12;
   const replayDate = params.get("date") || "",
     station = params.get("station") || "";
   const stage = document.getElementById("stage");
@@ -86,10 +92,11 @@
       max,
     });
   }
-  const chart =
-    layout === "full"
-      ? new WeatherChart(document.getElementById("trend-chart"))
-      : null;
+  const chart = ["full", "wall"].includes(layout)
+    ? new WeatherChart(document.getElementById("trend-chart"), {
+        compact: layout === "wall",
+      })
+    : null;
   let observation = null,
     reachable = true,
     history = null,
@@ -166,7 +173,7 @@
       }
     }
     document.getElementById("observation-time").textContent = observation
-      ? `觀測 ${M.timeLabel(observation.observed_at, true)} · UTC+8`
+      ? `觀測 ${M.timeLabel(observation.observed_at, true)}${layout === "wall" ? "" : " · UTC+8"}`
       : "觀測時間 — · UTC+8";
     document.getElementById("source-label").textContent = demo
       ? "示範資料 · 非實測 · 不代表現場天氣"
@@ -187,7 +194,7 @@
       ? "示範資料 · 非實測"
       : replayDate
         ? `歷史回放 · ${replayDate}`
-        : state.label;
+        : `${state.label}${layout === "wall" && ["stale", "offline"].includes(state.state) && state.age_seconds !== null ? ` · ${Math.floor(state.age_seconds / 60)} 分鐘前` : ""}`;
     document.getElementById("observation-age").textContent = demo
       ? "僅供播出版面預覽"
       : replayDate
@@ -201,7 +208,7 @@
     if (closed || !chart || !history) return;
     const message = document.getElementById("chart-message");
     document.getElementById("trend-range").textContent =
-      `${history.range.label}${demo ? " · 示範" : ""}${replayDate ? " · 歷史回放" : ""}`;
+      `${layout === "wall" ? (replayDate ? `${replayDate} · 回放` : `近 ${hours} 小時 · UTC+8`) : history.range.label}${demo ? " · 示範" : ""}${replayDate && layout !== "wall" ? " · 歷史回放" : ""}`;
     try {
       const output = chart.render(history, chartKey, windUnit);
       const heading = document.getElementById("trend-title");
@@ -333,10 +340,12 @@
     clearInterval(cycleTimer);
     if (!closed && cycling && !document.hidden)
       cycleTimer = setInterval(() => {
+        const cycleCharts =
+          layout === "wall"
+            ? ["temp", "wind", "rain", "pressure"]
+            : allowedCharts;
         chartKey =
-          allowedCharts[
-            (allowedCharts.indexOf(chartKey) + 1) % allowedCharts.length
-          ];
+          cycleCharts[(cycleCharts.indexOf(chartKey) + 1) % cycleCharts.length];
         renderChart();
       }, cycleSeconds * 1000);
   }

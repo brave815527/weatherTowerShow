@@ -551,6 +551,171 @@ html.theme-transparent {
 .layout-ticker .station-footer {
   display: none;
 }
+/* Camera-wall panel is drawn at its actual broadcast size, not a scaled dashboard. */
+.layout-wall {
+  width: 600px;
+  height: 640px;
+  padding: 14px;
+  gap: 8px;
+  grid-template-rows: 52px 288px minmax(0, 1fr) 20px;
+  background: #101c2b;
+  border: 1px solid #40536c;
+  border-radius: 12px;
+}
+.theme-transparent .layout-wall {
+  background: #101c2bf5;
+}
+.layout-wall .station-header,
+.theme-transparent .layout-wall .station-header {
+  gap: 8px;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
+}
+.layout-wall .station-brand {
+  flex: 1;
+  min-width: 0;
+}
+.layout-wall .station-brand > .eyebrow,
+.layout-wall .observation-age {
+  display: none;
+}
+.layout-wall .station-brand h1 {
+  font-size: 28px;
+  letter-spacing: 0;
+  margin: 0;
+}
+.layout-wall .station-state {
+  gap: 3px;
+  max-width: 230px;
+}
+.layout-wall .status-pill {
+  font-size: 16px;
+  padding: 1px 8px;
+  gap: 5px;
+  border-radius: 6px;
+}
+.layout-wall .observation-time {
+  font-size: 18px;
+  white-space: nowrap;
+}
+.layout-wall .metrics-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: 86px 110px 86px;
+  gap: 3px;
+}
+.layout-wall .metric-card,
+.theme-transparent .layout-wall .metric-card {
+  padding: 0 8px;
+  border: 0;
+  border-bottom: 1px solid #40536c;
+  border-radius: 0;
+  background: transparent;
+  justify-content: flex-start;
+}
+.layout-wall .metric-card:nth-child(odd) {
+  border-right: 1px solid #40536c;
+}
+.layout-wall .metric-top {
+  height: 26px;
+  flex-shrink: 0;
+}
+.layout-wall .metric-label {
+  font-size: 24px;
+  line-height: 26px;
+  font-weight: 700;
+  color: #e2eaf5;
+  letter-spacing: 0;
+}
+.layout-wall .metric-value-row {
+  gap: 7px;
+  height: 60px;
+  flex-shrink: 0;
+}
+.layout-wall .metric-value {
+  font-size: 58px;
+  line-height: 60px;
+}
+.layout-wall .metric-card[data-metric="pressure"] .metric-value {
+  font-size: 50px;
+}
+.layout-wall .metric-unit {
+  font-size: 24px;
+}
+.layout-wall .metric-sub {
+  display: none;
+  min-height: 0;
+  font-size: 20px;
+  line-height: 23px;
+  color: #c1d0e3;
+}
+.layout-wall .metric-card[data-metric="wind_speed"] .metric-sub,
+.layout-wall .metric-card[data-metric="precip_total"] .metric-sub {
+  display: block;
+}
+.layout-wall .metric-icon,
+.layout-wall .metric-track,
+.layout-wall .trend-stats,
+.layout-wall #trend-note {
+  display: none;
+}
+.layout-wall .trend-panel,
+.theme-transparent .layout-wall .trend-panel {
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  grid-template-rows: 30px minmax(0, 1fr) 22px;
+  gap: 4px;
+}
+.layout-wall .trend-heading {
+  gap: 6px;
+}
+.layout-wall .trend-heading > div:first-child {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: baseline;
+  justify-content: space-between;
+  width: 100%;
+  gap: 6px;
+}
+.layout-wall .trend-heading h2 {
+  font-size: 26px;
+  margin: 0;
+  white-space: nowrap;
+}
+.layout-wall .trend-unit {
+  font-size: 20px;
+  margin-left: 5px;
+}
+.layout-wall .trend-eyebrow {
+  font-size: 20px;
+  color: #c1d0e3;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.layout-wall .trend-bottom {
+  font-size: 20px;
+  color: #c1d0e3;
+}
+.layout-wall .trend-legend {
+  gap: 16px;
+}
+.layout-wall .chart-message {
+  font-size: 22px;
+  color: #d3dfef;
+  background: #101c2bf5;
+}
+.layout-wall .station-footer,
+.theme-transparent .layout-wall .station-footer {
+  font-size: 17px;
+  color: #c1d0e3;
+  padding: 0;
+  background: transparent;
+}
+.layout-wall #station-code {
+  display: none;
+}
 [hidden] {
   display: none !important;
 }
