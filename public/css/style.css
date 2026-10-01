@@ -557,7 +557,7 @@ html.theme-transparent {
   height: 640px;
   padding: 14px;
   gap: 8px;
-  grid-template-rows: 52px 288px minmax(0, 1fr) 20px;
+  grid-template-rows: 288px minmax(0, 1fr) 20px;
   background: #101c2b;
   border: 1px solid #40536c;
   border-radius: 12px;
@@ -567,6 +567,7 @@ html.theme-transparent {
 }
 .layout-wall .station-header,
 .theme-transparent .layout-wall .station-header {
+  display: none;
   gap: 8px;
   padding: 0;
   background: transparent;

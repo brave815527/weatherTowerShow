@@ -180,6 +180,11 @@
         : observation
           ? "資料來源 Weather Company / PWS"
           : "尚無有效觀測 · 請在工作台確認資料來源";
+    if (layout === "wall") {
+      document.getElementById("source-label").textContent =
+        document.getElementById("observation-time").textContent +
+        (demo ? " · 示範資料" : replayDate ? " · 歷史回放" : "");
+    }
     document.getElementById("station-code").textContent =
       `${demo ? "DEMO" : observation?.station_id || station || "—"} / UTC+8`;
     updateStatus();
