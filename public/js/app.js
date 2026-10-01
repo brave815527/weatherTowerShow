@@ -42,6 +42,11 @@
     station = params.get("station") || "";
   const stage = document.getElementById("stage");
   stage.className = `stage layout-${layout}`;
+  if (layout === "wall") {
+    document
+      .querySelector(".trend-bottom")
+      .append(document.getElementById("observation-time"));
+  }
   document.body.classList.add(`theme-${theme}`);
   document.documentElement.classList.add(`theme-${theme}`);
   stage.style.width = `${layouts[layout][0]}px`;

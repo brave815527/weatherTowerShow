@@ -557,7 +557,7 @@ html.theme-transparent {
   height: 640px;
   padding: 14px;
   gap: 8px;
-  grid-template-rows: 288px minmax(0, 1fr) 20px;
+  grid-template-rows: 288px minmax(0, 1fr);
   background: #101c2b;
   border: 1px solid #40536c;
   border-radius: 12px;
@@ -597,7 +597,8 @@ html.theme-transparent {
   border-radius: 6px;
 }
 .layout-wall .observation-time {
-  font-size: 18px;
+  margin-left: auto;
+  font-size: 17px;
   white-space: nowrap;
 }
 .layout-wall .metrics-grid {
@@ -701,6 +702,7 @@ html.theme-transparent {
   white-space: nowrap;
 }
 .layout-wall .trend-bottom {
+  gap: 8px;
   font-size: 20px;
   color: #c1d0e3;
 }
@@ -714,6 +716,7 @@ html.theme-transparent {
 }
 .layout-wall .station-footer,
 .theme-transparent .layout-wall .station-footer {
+  display: none;
   font-size: 17px;
   color: #c1d0e3;
   padding: 0;
