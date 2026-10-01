@@ -41,12 +41,12 @@ npm start
 http://127.0.0.1:3005/overlay?layout=full&theme=dark&chart=temp&hours=12&windUnit=ms
 http://127.0.0.1:3005/overlay?layout=sidebar&theme=transparent&windUnit=kmh
 http://127.0.0.1:3005/overlay?layout=ticker&demo=true
-http://127.0.0.1:3005/overlay?layout=wall&theme=dark&chart=cycle&hours=6&cycle=30&windUnit=ms
+http://127.0.0.1:3005/overlay?layout=wall&theme=dark&chart=cycle&hours=6&cycle=7.5&windUnit=ms
 ```
 
-牆面版在 OBS 直接設定瀏覽器來源 600×640、縮放100%。1920×1080 攝影機場景的起始位置為 X=16、Y=420，可依屋簷微調；720p 場景縮至400×427、位置約11、280。此版使用接近實底的深色資訊板，保留天空、街道與右下品牌。選擇牆面版會套用6小時與30秒輪播，可再自行調整圖表。
+牆面版在 OBS 直接設定瀏覽器來源 600×640、縮放100%。1920×1080 攝影機場景的起始位置為 X=16、Y=420，可依屋簷微調；720p 場景縮至400×427、位置約11、280。此版使用接近實底的深色資訊板，保留天空、街道與右下品牌。選擇牆面版會套用6小時與7.5秒輪播，可再自行調整圖表。
 
-chart 支援 temp/humidity/wind/direction/pressure/rain/cycle，cycle 為 15/20/30 秒；hours 為 6/12/24。date=YYYY-MM-DD 為臺北日期回放並永久標示日期；station 可指定站號。原 `/?obs=true` 轉至透明播出頁。
+chart 支援 temp/humidity/wind/direction/pressure/rain/cycle，cycle 為 7.5/15/20/30 秒（預設7.5秒）；hours 為 6/12/24。date=YYYY-MM-DD 為臺北日期回放並永久標示日期；station 可指定站號。原 `/?obs=true` 轉至透明播出頁。
 
 OBS 初始可用 30 FPS，先關閉「不可見時卸載」及「場景啟用時重新整理」，再依現場效能調整。透明模式保留資訊底板，需在亮天空、夜景與複雜影像上驗收。[OBS 官方說明](https://obsproject.com/kb/browser-source)
 

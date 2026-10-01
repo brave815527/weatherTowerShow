@@ -30,7 +30,7 @@
   }
   if ((incoming.get("layout") ?? stored.layout) === "wall") {
     form.elements.namedItem("hours").value = "6";
-    form.elements.namedItem("cycle").value = "30";
+    form.elements.namedItem("cycle").value = "7.5";
   }
   for (const name of fields) {
     if (name === "station") continue;
@@ -97,7 +97,7 @@
   form.addEventListener("change", (event) => {
     if (event.target.name === "layout" && event.target.value === "wall") {
       form.elements.namedItem("hours").value = "6";
-      form.elements.namedItem("cycle").value = "30";
+      form.elements.namedItem("cycle").value = "7.5";
       form.elements.namedItem("chart").value = "cycle";
     }
     clearTimeout(debounce);

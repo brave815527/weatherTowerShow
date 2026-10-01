@@ -30,11 +30,9 @@
       : "temp";
   const cycling =
       params.get("chart") === "cycle" && ["full", "wall"].includes(layout),
-    cycleSeconds = [15, 20, 30].includes(Number(params.get("cycle")))
+    cycleSeconds = [7.5, 15, 20, 30].includes(Number(params.get("cycle")))
       ? Number(params.get("cycle"))
-      : layout === "wall"
-        ? 30
-        : 20;
+      : 7.5;
   const hours = [6, 12, 24].includes(Number(params.get("hours")))
     ? Number(params.get("hours"))
     : layout === "wall"
