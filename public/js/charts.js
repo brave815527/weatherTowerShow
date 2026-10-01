@@ -98,28 +98,27 @@ window.WeatherChart = class {
           type: "linear",
           min: start,
           max: end,
-          grid: { display: false },
-          border: { display: false },
-          ...(this.compact
-            ? {
-                afterBuildTicks: (axis) => {
-                  axis.ticks = Array.from({ length: 4 }, (_, index) => ({
-                    value: start + ((end - start) * index) / 3,
-                  }));
-                },
-              }
-            : {}),
+          grid: { color: "#40536c", drawTicks: false },
+          border: { display: false, dash: [5, 5] },
+          afterBuildTicks: (axis) => {
+            const step = 3 * 60 * 60 * 1000;
+            const taipeiOffset = 8 * 60 * 60 * 1000;
+            const first =
+              Math.ceil((start + taipeiOffset) / step) * step - taipeiOffset;
+            axis.ticks = [];
+            for (let value = first; value <= end; value += step) {
+              axis.ticks.push({ value });
+            }
+          },
           ticks: {
             color: this.compact ? "#d3dfef" : "#859ab7",
             font: { family: "Noto Sans TC", size: this.compact ? 22 : 19 },
             maxRotation: 0,
-            maxTicksLimit: this.compact ? 4 : 7,
-            autoSkip: !this.compact,
+            autoSkip: false,
             callback: (value) =>
-              M.timeLabel(
-                Number(value),
-                !this.compact && M.dateKey(start) !== M.dateKey(end - 1),
-              ),
+              String(
+                new Date(Number(value) + 8 * 60 * 60 * 1000).getUTCHours(),
+              ).padStart(2, "0"),
           },
         },
         y: {
@@ -130,8 +129,8 @@ window.WeatherChart = class {
               : key === "wind" || key === "rain"
                 ? { beginAtZero: true }
                 : { grace: "15%" }),
-          grid: { color: "#26334a" },
-          border: { display: false },
+          grid: { color: "#33445c", drawTicks: false },
+          border: { display: false, dash: [5, 5] },
           ticks: {
             color: this.compact ? "#d3dfef" : "#859ab7",
             font: { family: "Noto Sans TC", size: this.compact ? 22 : 19 },
