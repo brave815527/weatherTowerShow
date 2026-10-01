@@ -620,6 +620,12 @@ html.theme-transparent {
   height: 26px;
   flex-shrink: 0;
 }
+.layout-wall .metric-icon {
+  display: block;
+  width: 26px;
+  height: 26px;
+  opacity: 1;
+}
 .layout-wall .metric-label {
   font-size: 24px;
   line-height: 26px;
@@ -653,7 +659,6 @@ html.theme-transparent {
 .layout-wall .metric-card[data-metric="precip_total"] .metric-sub {
   display: block;
 }
-.layout-wall .metric-icon,
 .layout-wall .metric-track,
 .layout-wall .trend-stats,
 .layout-wall #trend-note {
