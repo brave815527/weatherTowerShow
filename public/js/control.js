@@ -20,7 +20,10 @@
     "hours",
     "cycle",
     "date",
+    "accent",
+    "opacity",
   ];
+  const accents = { cyan: "#58d0d6", amber: "#f2b84b", violet: "#a78bfa" };
   const incoming = new URLSearchParams(location.search);
   let stored = {};
   try {
@@ -46,6 +49,8 @@
         element.value = value;
     }
   }
+  if (form.elements.namedItem("date").value)
+    document.getElementById("advanced-settings").open = true;
   document.getElementById("history-date").max = M.dateKey(Date.now());
   let settings = {},
     debounce,
@@ -71,8 +76,16 @@
     settings.station = document.getElementById("station-select").value;
     if (!Object.hasOwn(sizes, settings.layout)) settings.layout = "full";
     const query = new URLSearchParams();
-    for (const name of fields)
-      if (settings[name]) query.set(name, settings[name]);
+    for (const name of fields) {
+      if (!settings[name]) continue;
+      if (name === "accent" && settings[name] === "cyan") continue;
+      if (
+        name === "opacity" &&
+        (settings.theme !== "transparent" || settings[name] === "0.95")
+      )
+        continue;
+      query.set(name, settings[name]);
+    }
     const url = `${location.origin}/overlay?${query}`;
     document.getElementById("overlay-url").value = url;
     document.getElementById("open-overlay").href = url;
@@ -84,6 +97,12 @@
       "wall",
     ].includes(settings.layout);
     document.getElementById("wall-guide").hidden = settings.layout !== "wall";
+    document.getElementById("opacity-controls").hidden =
+      settings.theme !== "transparent";
+    document.documentElement.style.setProperty(
+      "--accent",
+      accents[settings.accent] || accents.cyan,
+    );
     document.getElementById("station-select").disabled =
       settings.demo === "true";
     try {
@@ -108,18 +127,33 @@
     document.getElementById("history-date").value = "";
     apply();
   });
-  document.getElementById("copy-url").addEventListener("click", async () => {
-    const input = document.getElementById("overlay-url"),
-      label = document.getElementById("copy-status");
-    try {
-      await navigator.clipboard.writeText(input.value);
-      label.textContent = "已複製。請貼到瀏覽器來源的網址欄位。";
-    } catch {
-      input.focus();
-      input.select();
-      label.textContent = "網址已選取，請按 Ctrl+C 複製。";
-    }
-  });
+  let copyTimer;
+  document
+    .getElementById("copy-url")
+    .addEventListener("click", async (event) => {
+      const button = event.currentTarget,
+        input = document.getElementById("overlay-url"),
+        label = document.getElementById("copy-status");
+      let copied = false;
+      try {
+        await navigator.clipboard.writeText(input.value);
+        label.textContent = "已複製。請貼到瀏覽器來源的網址欄位。";
+        copied = true;
+      } catch {
+        input.focus();
+        input.select();
+        label.textContent = "網址已選取，請按 Ctrl+C 複製。";
+      }
+      if (copied) {
+        button.textContent = "已複製 ✓";
+        button.classList.add("is-done");
+        clearTimeout(copyTimer);
+        copyTimer = setTimeout(() => {
+          button.textContent = "複製網址";
+          button.classList.remove("is-done");
+        }, 1800);
+      }
+    });
   new ResizeObserver(resizePreview).observe(box);
   apply();
   async function updateHealth() {
@@ -200,9 +234,20 @@
       ];
       const grid = document.getElementById("health-grid");
       grid.replaceChildren();
+      const tone = (name, value) => {
+        if (/失敗|離線|中斷/.test(value)) return "bad";
+        if (
+          /待確認|等待|未啟用|尚無|尚未|延遲|過期|復原/.test(value) ||
+          (name === "待補傳觀測" && parseInt(value, 10) > 0)
+        )
+          return "warn";
+        if (/正常|新鮮|0 筆|UTC\+8|\d{2}:\d{2}/.test(value)) return "ok";
+        return "idle";
+      };
       for (const [name, value] of items) {
         const node = document.createElement("div");
         node.className = "health-item";
+        node.dataset.tone = tone(name, value);
         const label = document.createElement("span"),
           detail = document.createElement("strong");
         label.textContent = name;
@@ -210,6 +255,16 @@
         node.append(label, detail);
         grid.append(node);
       }
+      const order = { idle: 0, ok: 0, warn: 1, bad: 2 };
+      const worst = [...grid.children].reduce(
+        (level, node) => Math.max(level, order[node.dataset.tone] || 0),
+        0,
+      );
+      document.getElementById("system-pill").dataset.tone = [
+        "ok",
+        "warn",
+        "bad",
+      ][worst];
       const notes = [];
       if (status.local?.legacy_rejected)
         notes.push(
@@ -233,6 +288,7 @@
     } catch {
       if (stopped) return;
       document.getElementById("system-pill").textContent = "服務連線中斷";
+      document.getElementById("system-pill").dataset.tone = "bad";
       document.getElementById("health-notice").textContent =
         "目前無法讀取服務狀態，播出頁會保留最後有效觀測。";
     } finally {

@@ -4,6 +4,87 @@ window.WeatherChart = class {
     this.canvas = canvas;
     this.compact = compact;
     this.chart = null;
+    this.meta = null;
+    const self = this;
+    this.plugin = {
+      id: "weatherAnnotations",
+      afterDatasetsDraw(chart) {
+        const meta = self.meta;
+        if (!meta) return;
+        const { ctx, chartArea: area, scales } = chart;
+        const day = 24 * 60 * 60 * 1000,
+          offset = 8 * 60 * 60 * 1000;
+        ctx.save();
+        ctx.font = `${self.compact ? 12 : 15}px "Noto Sans TC", sans-serif`;
+        for (
+          let time = Math.ceil((meta.start + offset) / day) * day - offset;
+          time < meta.end;
+          time += day
+        ) {
+          if (time <= meta.start) continue;
+          const px = scales.x.getPixelForValue(time);
+          ctx.strokeStyle = "#8fb3d966";
+          ctx.setLineDash([3, 5]);
+          ctx.beginPath();
+          ctx.moveTo(px, area.top);
+          ctx.lineTo(px, area.bottom);
+          ctx.stroke();
+          const date = new Date(time + offset);
+          ctx.setLineDash([]);
+          ctx.fillStyle = "#a9c0dc";
+          ctx.textAlign = "left";
+          ctx.textBaseline = "top";
+          ctx.fillText(
+            `${date.getUTCMonth() + 1}/${date.getUTCDate()}`,
+            px + 6,
+            area.top + 2,
+          );
+        }
+        if (meta.extremes) {
+          const valid = meta.points.filter((point) => point.y !== null);
+          if (valid.length > 2) {
+            const high = valid.reduce((a, b) => (b.y > a.y ? b : a)),
+              low = valid.reduce((a, b) => (b.y < a.y ? b : a));
+            if (high.y !== low.y) {
+              ctx.textAlign = "center";
+              ctx.fillStyle = meta.color;
+              const pad = self.compact ? 38 : 30;
+              for (const [point, above] of [
+                [high, true],
+                [low, false],
+              ]) {
+                const px = Math.min(
+                    Math.max(
+                      scales.x.getPixelForValue(point.x),
+                      area.left + pad,
+                    ),
+                    area.right - pad,
+                  ),
+                  py = scales.y.getPixelForValue(point.y);
+                ctx.beginPath();
+                ctx.arc(
+                  scales.x.getPixelForValue(point.x),
+                  py,
+                  self.compact ? 3 : 3.5,
+                  0,
+                  Math.PI * 2,
+                );
+                ctx.fill();
+                ctx.textBaseline = above ? "bottom" : "top";
+                ctx.fillText(
+                  `${above ? "高 " : "低 "}${WeatherModel.format(point.y)}`,
+                  px,
+                  above
+                    ? py - (self.compact ? 6 : 8)
+                    : py + (self.compact ? 6 : 8),
+                );
+              }
+            }
+          }
+        }
+        ctx.restore();
+      },
+    };
   }
   clear() {
     if (this.chart) {
@@ -39,6 +120,24 @@ window.WeatherChart = class {
             x: point.x,
             y: point.y === null ? null : point.y * multiplier,
           }));
+    const isLine = key !== "rain" && key !== "direction";
+    let lastIndex = -1;
+    mainPoints.forEach((point, index) => {
+      if (point.y !== null) lastIndex = index;
+    });
+    const fillGradient = (context) => {
+      const area = context.chart.chartArea;
+      if (!area) return "transparent";
+      const gradient = context.chart.ctx.createLinearGradient(
+        0,
+        area.top,
+        0,
+        area.bottom,
+      );
+      gradient.addColorStop(0, `${color}${this.compact ? "40" : "55"}`);
+      gradient.addColorStop(1, `${color}00`);
+      return gradient;
+    };
     const datasets = [
       {
         label:
@@ -51,10 +150,26 @@ window.WeatherChart = class {
                 : "實際觀測",
         data: mainPoints,
         borderColor: color,
-        backgroundColor: key === "rain" ? "#22d3eeaa" : color,
+        backgroundColor: isLine
+          ? fillGradient
+          : key === "rain"
+            ? "#22d3eecc"
+            : color,
+        fill: isLine ? "start" : false,
         borderWidth: this.compact ? 4 : 3,
+        borderRadius: key === "rain" ? 3 : 0,
         tension: 0,
-        pointRadius: key === "direction" ? 3 : 0,
+        cubicInterpolationMode: isLine ? "monotone" : "default",
+        borderJoinStyle: "round",
+        borderCapStyle: "round",
+        pointRadius: isLine
+          ? (context) => (context.dataIndex === lastIndex ? 6 : 0)
+          : key === "direction"
+            ? 4
+            : 0,
+        pointBackgroundColor: isLine ? "#0b1220" : color,
+        pointBorderColor: color,
+        pointBorderWidth: 3,
         showLine: key !== "direction",
         spanGaps: false,
       },
@@ -80,10 +195,19 @@ window.WeatherChart = class {
         borderColor: "#fbbf77",
         backgroundColor: "#fbbf77",
         showLine: false,
-        pointRadius: 3,
+        pointRadius: this.compact ? 5 : 4,
+        pointBorderColor: "#0b1220",
+        pointBorderWidth: 1,
         spanGaps: false,
       });
     const type = key === "rain" ? "bar" : "line";
+    this.meta = {
+      start,
+      end,
+      color,
+      points: mainPoints,
+      extremes: isLine,
+    };
     const options = {
       animation: false,
       responsive: false,
@@ -91,6 +215,7 @@ window.WeatherChart = class {
       parsing: false,
       normalized: true,
       devicePixelRatio: 1,
+      layout: { padding: { right: 10, top: 6 } },
       interaction: { mode: "nearest", intersect: false },
       plugins: { legend: { display: false }, tooltip: { enabled: false } },
       scales: {
@@ -98,8 +223,8 @@ window.WeatherChart = class {
           type: "linear",
           min: start,
           max: end,
-          grid: { color: "#40536c", drawTicks: false },
-          border: { display: false, dash: [5, 5] },
+          grid: { color: "#40536c33", drawTicks: false },
+          border: { display: false },
           afterBuildTicks: (axis) => {
             const step = 3 * 60 * 60 * 1000;
             const taipeiOffset = 8 * 60 * 60 * 1000;
@@ -111,14 +236,16 @@ window.WeatherChart = class {
             }
           },
           ticks: {
-            color: this.compact ? "#d3dfef" : "#859ab7",
-            font: { family: "Noto Sans TC", size: this.compact ? 22 : 19 },
+            color: this.compact ? "#a9bed9" : "#859ab7",
+            font: { family: "Noto Sans TC", size: this.compact ? 13 : 19 },
             maxRotation: 0,
             autoSkip: false,
-            callback: (value) =>
-              String(
+            callback: (value) => {
+              const hour = String(
                 new Date(Number(value) + 8 * 60 * 60 * 1000).getUTCHours(),
-              ).padStart(2, "0"),
+              ).padStart(2, "0");
+              return `${hour}:00`;
+            },
           },
         },
         y: {
@@ -129,11 +256,11 @@ window.WeatherChart = class {
               : key === "wind" || key === "rain"
                 ? { beginAtZero: true }
                 : { grace: "15%" }),
-          grid: { color: "#33445c", drawTicks: false },
-          border: { display: false, dash: [5, 5] },
+          grid: { color: "#40536c66", drawTicks: false },
+          border: { display: false, dash: [4, 6] },
           ticks: {
-            color: this.compact ? "#d3dfef" : "#859ab7",
-            font: { family: "Noto Sans TC", size: this.compact ? 22 : 19 },
+            color: this.compact ? "#a9bed9" : "#859ab7",
+            font: { family: "Noto Sans TC", size: this.compact ? 13 : 19 },
             maxTicksLimit: this.compact ? 4 : 5,
             precision: key === "direction" ? 0 : 1,
             callback: (value) => (key === "direction" ? `${value}°` : value),
@@ -154,6 +281,7 @@ window.WeatherChart = class {
         type,
         data: { datasets },
         options,
+        plugins: [this.plugin],
       });
     }
     const stats = M.statistics(rows, field),

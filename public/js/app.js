@@ -49,6 +49,15 @@
   }
   document.body.classList.add(`theme-${theme}`);
   document.documentElement.classList.add(`theme-${theme}`);
+  const accents = { cyan: "#58d0d6", amber: "#f2b84b", violet: "#a78bfa" };
+  if (Object.hasOwn(accents, params.get("accent")))
+    document.documentElement.style.setProperty(
+      "--accent",
+      accents[params.get("accent")],
+    );
+  const glass = Number(params.get("opacity"));
+  if ([0.7, 0.85, 0.95].includes(glass))
+    stage.style.setProperty("--glass", String(glass));
   stage.style.width = `${layouts[layout][0]}px`;
   stage.style.height = `${layouts[layout][1]}px`;
   function resize() {
@@ -78,12 +87,24 @@
     ["dewpt", "露點溫度", "°C", "#7dd3fc", -10, 35],
   ];
   const nodes = new Map();
+  function compassMarkup() {
+    let ticks = "";
+    for (let degree = 0; degree < 360; degree += 30) {
+      const long = degree % 90 === 0,
+        radius = long ? 40 : 45;
+      const rad = (degree * Math.PI) / 180;
+      ticks += `<line x1="${(60 + Math.sin(rad) * 52).toFixed(1)}" y1="${(60 - Math.cos(rad) * 52).toFixed(1)}" x2="${(60 + Math.sin(rad) * radius).toFixed(1)}" y2="${(60 - Math.cos(rad) * radius).toFixed(1)}"/>`;
+    }
+    return `<svg class="wind-compass" viewBox="0 0 120 120" aria-hidden="true"><circle cx="60" cy="60" r="53"/>${ticks}<text x="60" y="34">N</text><text x="92" y="64">E</text><text x="60" y="96">S</text><text x="28" y="64">W</text><g class="compass-needle"><path d="M60 20 68 60 60 54 52 60Z"/><path class="compass-tail" d="M60 100 56 64h8Z"/></g><circle class="compass-hub" cx="60" cy="60" r="3.5"/></svg>`;
+  }
   for (const [key, title, unit, color, min, max] of definitions) {
     const card = document.createElement("article");
-    card.className = "metric-card";
+    card.className = "metric-card is-loading";
     card.dataset.metric = key;
+    card.setAttribute("role", "group");
+    card.setAttribute("aria-label", title);
     card.style.setProperty("--metric-color", color);
-    card.innerHTML = `<div class="metric-top"><h2 class="metric-label"></h2><svg class="metric-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${WeatherIcons[key]}</svg></div><div class="metric-value-row"><span class="metric-value">—</span><span class="metric-unit"></span></div><div class="metric-sub">等待觀測</div><div class="metric-track" aria-hidden="true"><span></span></div>`;
+    card.innerHTML = `<div class="metric-top"><h2 class="metric-label"></h2><svg class="metric-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${WeatherIcons[key]}</svg></div><div class="metric-value-row"><span class="metric-value">—</span><span class="metric-unit"></span><span class="metric-delta" hidden></span></div><div class="metric-sub">等待觀測</div>${key === "wind_speed" ? compassMarkup() : ""}<div class="metric-track" aria-hidden="true"><span></span></div>`;
     card.querySelector(".metric-label").textContent = title;
     card.querySelector(".metric-unit").textContent = unit;
     document.getElementById("metrics").append(card);
@@ -91,6 +112,7 @@
       card,
       value: card.querySelector(".metric-value"),
       sub: card.querySelector(".metric-sub"),
+      delta: card.querySelector(".metric-delta"),
       min,
       max,
     });
@@ -137,7 +159,45 @@
       controllers.delete(controller);
     }
   }
+  function endLoading() {
+    for (const node of nodes.values()) node.card.classList.remove("is-loading");
+  }
+  function hourAgoRow() {
+    if (!history || !observation) return null;
+    const target = new Date(observation.observed_at).getTime() - 3600000;
+    let best = null,
+      bestDiff = Infinity;
+    for (const row of history.observations) {
+      const time = new Date(row.observed_at).getTime();
+      if (!Number.isFinite(time)) continue;
+      const diff = Math.abs(time - target);
+      if (diff < bestDiff) {
+        best = row;
+        bestDiff = diff;
+      }
+    }
+    return bestDiff <= 20 * 60000 ? best : null;
+  }
+  function renderDelta(node, key, value, base) {
+    const previous = base ? M.number(base[key]) : null;
+    if (value === null || previous === null) {
+      node.delta.hidden = true;
+      return;
+    }
+    const digits = key === "humidity" ? 0 : 1,
+      factor = key === "wind_speed" && windUnit === "kmh" ? 3.6 : 1;
+    const diff = Number(((value - previous) * factor).toFixed(digits));
+    node.delta.hidden = false;
+    node.delta.title = "較 1 小時前";
+    node.delta.dataset.dir = diff > 0 ? "up" : diff < 0 ? "down" : "flat";
+    node.delta.textContent =
+      diff === 0
+        ? "持平"
+        : `${diff > 0 ? "▲" : "▼"} ${M.format(Math.abs(diff), digits)}`;
+  }
   function renderValues() {
+    const base = hourAgoRow();
+    if (observation) endLoading();
     for (const [key] of definitions) {
       const node = nodes.get(key),
         value = M.number(observation?.[key]);
@@ -147,7 +207,14 @@
           : key === "wind_speed" && windUnit === "kmh"
             ? value * 3.6
             : value;
-      node.value.textContent = M.format(shown, key === "humidity" ? 0 : 1);
+      const text = M.format(shown, key === "humidity" ? 0 : 1);
+      if (node.value.textContent !== text) {
+        node.value.textContent = text;
+        node.value.classList.remove("tick");
+        void node.value.offsetWidth;
+        node.value.classList.add("tick");
+      }
+      renderDelta(node, key, value, base);
       node.card.dataset.missing = String(value === null);
       node.card.style.setProperty(
         "--metric-progress",
@@ -155,8 +222,10 @@
       );
       if (value === null) {
         node.sub.textContent = "此項觀測未提供";
-        if (key === "wind_speed")
+        if (key === "wind_speed") {
           node.card.querySelector(".wind-needle").style.opacity = "0";
+          node.card.querySelector(".compass-needle").style.opacity = "0";
+        }
         continue;
       }
       if (key === "temp") node.sub.textContent = demo ? "示範氣溫" : "實際氣溫";
@@ -169,8 +238,12 @@
         const gust = M.number(observation?.wind_gust);
         const bearing = M.number(observation?.wind_dir, 0, 360);
         const needle = node.card.querySelector(".wind-needle");
+        const compass = node.card.querySelector(".compass-needle");
         needle.setAttribute("transform", `rotate(${bearing ?? 0} 12 12)`);
-        needle.style.opacity = bearing === null || value < 0.3 ? "0" : "1";
+        compass.setAttribute("transform", `rotate(${bearing ?? 0} 60 60)`);
+        const visible = bearing === null || value < 0.3 ? "0" : "1";
+        needle.style.opacity = visible;
+        compass.style.opacity = visible;
         const dir = value < 0.3 ? "靜風" : M.direction(observation?.wind_dir);
         node.sub.textContent = `${dir} · 陣風 ${M.format(gust === null ? null : gust * (windUnit === "kmh" ? 3.6 : 1))}${layout === "ticker" ? "" : ` ${windUnit === "kmh" ? "km/h" : "m/s"}`}`;
       }
@@ -282,6 +355,7 @@
         renderValues();
       }
       renderChart();
+      if (!replayDate) renderValues();
     } catch {
       if (closed) return;
       if (replayDate) {
@@ -324,6 +398,7 @@
       reachable = false;
       renderValues();
     } finally {
+      endLoading();
       latestBusy = false;
     }
   }

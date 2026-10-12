@@ -5,10 +5,10 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="color-scheme" content="dark" />
     <title>Weather Tower · 直播畫面工作台</title>
-    <link rel="stylesheet" href="/css/style.css?v=2.1.5" />
-    <link rel="stylesheet" href="/css/control.css?v=2.1.5" />
-    <script defer src="/js/model.js?v=2.1.5"></script>
-    <script defer src="/js/control.js?v=2.1.5"></script>
+    <link rel="stylesheet" href="/css/style.css?v=2.1.6" />
+    <link rel="stylesheet" href="/css/control.css?v=2.1.6" />
+    <script defer src="/js/model.js?v=2.1.6"></script>
+    <script defer src="/js/control.js?v=2.1.6"></script>
   </head>
   <body class="control-body">
     <div class="control-wrap">
@@ -32,30 +32,67 @@
             <fieldset>
               <legend>播出版型</legend>
               <div class="layout-options">
-                <label
-                  ><input type="radio" name="layout" value="wall" /><span
-                    ><strong>攝影機牆面資訊板</strong
-                    ><small>600 × 640 · 大字與趨勢圖</small></span
-                  ></label
-                >
-                <label
-                  ><input
-                    type="radio"
-                    name="layout"
-                    value="full"
-                    checked
-                  /><span
-                    ><strong>全畫面</strong><small>1920 × 1080</small></span
-                  ></label
-                ><label
-                  ><input type="radio" name="layout" value="sidebar" /><span
-                    ><strong>側邊資訊板</strong><small>480 × 1080</small></span
-                  ></label
-                ><label
-                  ><input type="radio" name="layout" value="ticker" /><span
-                    ><strong>底部橫條</strong><small>1920 × 180</small></span
-                  ></label
-                >
+                <label>
+                  <input type="radio" name="layout" value="wall" />
+                  <svg
+                    class="layout-thumb"
+                    viewBox="0 0 40 28"
+                    aria-hidden="true"
+                  >
+                    <rect x="12" y="2" width="16" height="24" rx="2" />
+                    <path d="M14 8h5M21 8h5M14 14h5M21 14h5M14 21h12" />
+                  </svg>
+                  <span>
+                    <strong>攝影機牆面資訊板</strong>
+                    <small>600 × 640 · 大字與趨勢圖</small>
+                  </span>
+                </label>
+                <label>
+                  <input type="radio" name="layout" value="full" checked />
+                  <svg
+                    class="layout-thumb"
+                    viewBox="0 0 40 28"
+                    aria-hidden="true"
+                  >
+                    <rect x="2" y="2" width="36" height="24" rx="2" />
+                    <path
+                      d="M5 6h30M5 6v8M15 6v8M25 6v8M35 6v8M5 14h30M5 21h30"
+                    />
+                  </svg>
+                  <span>
+                    <strong>全畫面</strong><small>1920 × 1080</small>
+                  </span>
+                </label>
+                <label>
+                  <input type="radio" name="layout" value="sidebar" />
+                  <svg
+                    class="layout-thumb"
+                    viewBox="0 0 40 28"
+                    aria-hidden="true"
+                  >
+                    <rect x="2" y="2" width="36" height="24" rx="2" />
+                    <rect x="26" y="2" width="12" height="24" rx="1" />
+                    <path d="M29 8h6M29 13h6M29 18h6" />
+                  </svg>
+                  <span>
+                    <strong>側邊資訊板</strong><small>480 × 1080</small>
+                  </span>
+                </label>
+                <label>
+                  <input type="radio" name="layout" value="ticker" />
+                  <svg
+                    class="layout-thumb"
+                    viewBox="0 0 40 28"
+                    aria-hidden="true"
+                  >
+                    <rect x="2" y="2" width="36" height="24" rx="2" />
+                    <rect x="2" y="19" width="36" height="7" rx="1" />
+                    <path d="M12 22.5h4M20 22.5h4M28 22.5h4" />
+                  </svg>
+                  <span>
+                    <strong>底部橫條</strong><small>1920 × 180</small>
+                  </span>
+                </label>
               </div>
             </fieldset>
             <label class="form-label" for="source-mode">資料模式</label
@@ -80,6 +117,26 @@
                 ><select id="unit-select" name="windUnit">
                   <option value="ms">m/s</option>
                   <option value="kmh">km/h</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div>
+                <label class="form-label" for="accent-select">強調色</label>
+                <select id="accent-select" name="accent">
+                  <option value="cyan">海水青</option>
+                  <option value="amber">琥珀金</option>
+                  <option value="violet">暮光紫</option>
+                </select>
+              </div>
+              <div id="opacity-controls" hidden>
+                <label class="form-label" for="opacity-select"
+                  >卡片透明度</label
+                >
+                <select id="opacity-select" name="opacity">
+                  <option value="0.95">95% 實心</option>
+                  <option value="0.85">85%</option>
+                  <option value="0.7">70% 通透</option>
                 </select>
               </div>
             </div>
@@ -114,14 +171,17 @@
                 </div>
               </div>
             </div>
-            <label class="form-label" for="history-date">歷史回放日期</label
-            ><input id="history-date" name="date" type="date" />
-            <p class="field-help">
-              留空顯示最新觀測。指定日期時，播出畫面會標明歷史回放。
-            </p>
-            <button type="button" id="reset-date" class="text-button">
-              返回即時觀測
-            </button>
+            <details id="advanced-settings" class="advanced">
+              <summary>進階設定 · 歷史回放</summary>
+              <label class="form-label" for="history-date">歷史回放日期</label>
+              <input id="history-date" name="date" type="date" />
+              <p class="field-help">
+                留空顯示最新觀測。指定日期時，播出畫面會標明歷史回放。
+              </p>
+              <button type="button" id="reset-date" class="text-button">
+                返回即時觀測
+              </button>
+            </details>
           </form>
           <section class="capture-guide">
             <div class="panel-heading">
@@ -148,6 +208,7 @@
             <div class="preview-toolbar">
               <div>
                 <span class="preview-dot"></span><strong>播出預覽</strong
+                ><span class="live-badge">LIVE</span
                 ><span id="preview-size">1920 × 1080</span>
               </div>
               <a
@@ -158,21 +219,10 @@
                 >開啟播出頁 ↗</a
               >
             </div>
-            <div id="preview-box" class="preview-box">
-              <iframe
-                id="preview-frame"
-                title="直播畫面預覽"
-                src="about:blank"
-                loading="eager"
-              ></iframe>
-            </div>
             <div class="url-row">
-              <label class="sr-only" for="overlay-url">播出網址</label
-              ><input id="overlay-url" readonly /><button
-                type="button"
-                id="copy-url"
-                class="primary-button"
-              >
+              <label class="sr-only" for="overlay-url">播出網址</label>
+              <input id="overlay-url" readonly />
+              <button type="button" id="copy-url" class="primary-button">
                 複製網址
               </button>
             </div>
@@ -183,6 +233,14 @@
               aria-live="polite"
             >
               此網址包含目前選擇的版型與資料模式。
+            </div>
+            <div id="preview-box" class="preview-box">
+              <iframe
+                id="preview-frame"
+                title="直播畫面預覽"
+                src="about:blank"
+                loading="eager"
+              ></iframe>
             </div>
           </section>
           <section class="health-panel">
