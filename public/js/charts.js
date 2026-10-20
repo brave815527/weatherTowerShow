@@ -15,7 +15,7 @@ window.WeatherChart = class {
         const day = 24 * 60 * 60 * 1000,
           offset = 8 * 60 * 60 * 1000;
         ctx.save();
-        ctx.font = `${self.compact ? 12 : 15}px "Noto Sans TC", sans-serif`;
+        ctx.font = `${self.compact ? 14 : 15}px "Noto Sans TC", sans-serif`;
         for (
           let time = Math.ceil((meta.start + offset) / day) * day - offset;
           time < meta.end;
@@ -223,8 +223,8 @@ window.WeatherChart = class {
           type: "linear",
           min: start,
           max: end,
-          grid: { color: "#40536c33", drawTicks: false },
-          border: { display: false },
+          grid: { color: "#53565b77", drawTicks: false },
+          border: { display: false, dash: [4, 6] },
           afterBuildTicks: (axis) => {
             const step = 3 * 60 * 60 * 1000;
             const taipeiOffset = 8 * 60 * 60 * 1000;
@@ -236,15 +236,15 @@ window.WeatherChart = class {
             }
           },
           ticks: {
-            color: this.compact ? "#a9bed9" : "#859ab7",
-            font: { family: "Noto Sans TC", size: this.compact ? 13 : 19 },
+            color: this.compact ? "#c6c8cb" : "#a2a5aa",
+            font: { family: "Noto Sans TC", size: this.compact ? 20 : 19 },
             maxRotation: 0,
             autoSkip: false,
             callback: (value) => {
               const hour = String(
                 new Date(Number(value) + 8 * 60 * 60 * 1000).getUTCHours(),
               ).padStart(2, "0");
-              return `${hour}:00`;
+              return hour;
             },
           },
         },
@@ -256,11 +256,11 @@ window.WeatherChart = class {
               : key === "wind" || key === "rain"
                 ? { beginAtZero: true }
                 : { grace: "15%" }),
-          grid: { color: "#40536c66", drawTicks: false },
+          grid: { color: "#53565b88", drawTicks: false },
           border: { display: false, dash: [4, 6] },
           ticks: {
-            color: this.compact ? "#a9bed9" : "#859ab7",
-            font: { family: "Noto Sans TC", size: this.compact ? 13 : 19 },
+            color: this.compact ? "#c6c8cb" : "#a2a5aa",
+            font: { family: "Noto Sans TC", size: this.compact ? 20 : 19 },
             maxTicksLimit: this.compact ? 4 : 5,
             precision: key === "direction" ? 0 : 1,
             callback: (value) => (key === "direction" ? `${value}°` : value),
